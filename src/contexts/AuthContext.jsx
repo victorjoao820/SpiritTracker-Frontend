@@ -1,15 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext } from 'react';
 import { authAPI } from '../services/api.js';
 
 const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -27,7 +19,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        authAPI.removeToken();
+        authAPI.removeTokens();
       } finally {
         setIsLoading(false);
       }
@@ -38,33 +30,25 @@ export const AuthProvider = ({ children }) => {
 
   // Login function
   const login = async (email, password) => {
-    try {
-      const response = await authAPI.login(email, password);
-      authAPI.setToken(response.token);
-      setUser(response.user);
-      setIsAuthenticated(true);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await authAPI.login(email, password);
+    authAPI.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
+    setUser(response.user);
+    setIsAuthenticated(true);
+    return response;
   };
 
   // Register function
   const register = async (email, password) => {
-    try {
-      const response = await authAPI.register(email, password);
-      authAPI.setToken(response.token);
-      setUser(response.user);
-      setIsAuthenticated(true);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await authAPI.register(email, password);
+    authAPI.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
+    setUser(response.user);
+    setIsAuthenticated(true);
+    return response;
   };
 
   // Logout function
   const logout = () => {
-    authAPI.removeToken();
+    authAPI.removeTokens();
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -84,3 +68,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export default AuthContext;

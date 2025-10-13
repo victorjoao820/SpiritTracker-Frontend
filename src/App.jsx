@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 import AuthScreen from "./AuthScreen";
 import { InventoryItem } from "./components/InventoryItem";
 import { ProductionView } from "./components/ProductionView";

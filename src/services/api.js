@@ -1,14 +1,72 @@
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-// Helper function to get auth token
-const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+// Helper functions to manage tokens
+const getAccessToken = () => {
+  return localStorage.getItem('accessToken');
 };
 
-// Helper function to make API requests
+const getRefreshToken = () => {
+  return localStorage.getItem('refreshToken');
+};
+
+const setTokens = (accessToken, refreshToken) => {
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+};
+
+const removeTokens = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+};
+
+// Flag to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+// Subscribers for token refresh
+const subscribeTokenRefresh = (callback) => {
+  refreshSubscribers.push(callback);
+};
+
+const onTokenRefreshed = (accessToken) => {
+  refreshSubscribers.forEach(callback => callback(accessToken));
+  refreshSubscribers = [];
+};
+
+// Refresh access token using refresh token
+const refreshAccessToken = async () => {
+  const refreshToken = getRefreshToken();
+  
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+
+    const data = await response.json();
+    setTokens(data.tokens.accessToken, data.tokens.refreshToken);
+    return data.tokens.accessToken;
+  } catch (error) {
+    removeTokens();
+    throw error;
+  }
+};
+
+// Helper function to make API requests with automatic token refresh
 const apiRequest = async (endpoint, options = {}) => {
-  const token = getAuthToken();
+  const token = getAccessToken();
   
   const config = {
     headers: {
@@ -21,6 +79,38 @@ const apiRequest = async (endpoint, options = {}) => {
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    
+    // If unauthorized and we have a refresh token, try to refresh
+    if (response.status === 401 && getRefreshToken() && !options._retry) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        
+        try {
+          const newAccessToken = await refreshAccessToken();
+          isRefreshing = false;
+          onTokenRefreshed(newAccessToken);
+          
+          // Retry the original request with new token
+          return apiRequest(endpoint, { ...options, _retry: true });
+        } catch (refreshError) {
+          isRefreshing = false;
+          removeTokens();
+          // Redirect to login or throw error
+          window.location.href = '/';
+          throw new Error('Session expired. Please login again.');
+        }
+      } else {
+        // If already refreshing, wait for it to complete
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh((newAccessToken) => {
+            // Retry with new token
+            apiRequest(endpoint, { ...options, _retry: true })
+              .then(resolve)
+              .catch(reject);
+          });
+        });
+      }
+    }
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -57,19 +147,24 @@ export const authAPI = {
     return apiRequest('/auth/verify');
   },
 
-  // Store token after login
-  setToken: (token) => {
-    localStorage.setItem('authToken', token);
+  // Refresh token
+  refreshToken: async () => {
+    return refreshAccessToken();
   },
 
-  // Remove token on logout
-  removeToken: () => {
-    localStorage.removeItem('authToken');
+  // Store tokens after login/register
+  setTokens: (accessToken, refreshToken) => {
+    setTokens(accessToken, refreshToken);
+  },
+
+  // Remove tokens on logout
+  removeTokens: () => {
+    removeTokens();
   },
 
   // Check if user is authenticated
   isAuthenticated: () => {
-    return !!getAuthToken();
+    return !!getAccessToken();
   }
 };
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 
 const AuthScreen = () => {
   const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
