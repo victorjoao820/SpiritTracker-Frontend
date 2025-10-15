@@ -36,7 +36,7 @@ cp env.example .env.local
 Edit `.env.local`:
 
 ```
-VITE_API_URL=http://localhost:3001/api
+VITE_API_BASE_URL=http://localhost:3001/api
 ```
 
 ### 3. **Start the Backend** (in separate terminal)
@@ -107,7 +107,7 @@ npm run db:seed
 **CORS errors:**
 
 - Make sure backend is running on port 3001
-- Check `VITE_API_URL` in `.env.local`
+- Check `VITE_API_BASE_URL` in `.env.local`
 
 **Authentication errors:**
 
