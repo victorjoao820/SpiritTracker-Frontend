@@ -153,15 +153,8 @@ const InventoryView = () => {
     
     // Calculate percentage full based on net weight (simplified)
     let percentageFull = 0;
-    if (container.type === "still") {
-      percentageFull = container.status === "FILLED" ? 100 : 0;
-    } else {
-      percentageFull = container.status === "FILLED" && netWeight > 0 ? 100 : 0;
-    }
-    
-    // Calculate proof gallons from net weight (assuming 8.3 lbs per gallon)
-    
-    
+    percentageFull = ((netWeight * 100) / capacity).toFixed(0);
+
     // Get actual weights from container data
     const tareWeight = container.tareWeight ? Number(container.tareWeight) : 0;
     const grossWeight = tareWeight + netWeight;
@@ -308,10 +301,10 @@ const InventoryView = () => {
                       </div>
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
                         <div className="flex flex-col items-center justify-center space-y-1">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-8 bg-gray-200  h-2">
                             <div 
-                              className={`h-2 rounded-full ${
-                                container.status === 'FILLED' ? 'bg-green-500' : 'bg-gray-400'
+                              className={`h-2 ${
+                                container.status === 'FILLED' ? 'bg-yellow-500' : 'bg-gray-400'
                               }`}
                               style={{ width: `${calculated.percentageFull}%` }}
                             ></div>
