@@ -47,7 +47,7 @@ function AuthenticatedLayout({ children }) {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-64 bg-gray-900">
         {/* Header */}
         <Header user={user} onLogout={logout} />
 
