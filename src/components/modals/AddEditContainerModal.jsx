@@ -29,6 +29,7 @@ export const AddEditContainerModal = ({
     grossWeightLbs: "",
     proof: "",
     account: "storage",
+    netWeight: "",
   };
   const [formData, setFormData] = useState(initialFormData);
   const [calculated, setCalculated] = useState({
@@ -49,14 +50,12 @@ export const AddEditContainerModal = ({
   useEffect(() => {
     let productT = getDefaultProductType();
     if (container) {
-      productT = container.currentFill?.productType || getDefaultProductType();
-      let grossW = container.currentFill?.grossWeightLbs?.toString() || "";
-      let prf = container.currentFill?.proof?.toString() || "";
-      let fDate =
-        container.currentFill?.fillDate ||
-        new Date().toISOString().split("T")[0];
-      let wgInput = container.currentFill?.wineGallons?.toFixed(2) || "";
-      let pgInput = container.currentFill?.proofGallons?.toFixed(2) || "";
+      productT = container.product?.name || getDefaultProductType();
+      let grossW = container.grossWeight?.toString() || "";
+      let prf = container.proof?.toString() || "";
+      let fDate = container.fillDate || new Date().toISOString().split("T")[0];
+      let wgInput = container.wineGallons?.toFixed(2) || "";
+      let pgInput = container.proofGallons?.toFixed(2) || "";
 
       if (isRefillMode) {
         grossW = "";
@@ -70,12 +69,12 @@ export const AddEditContainerModal = ({
       setFormData({
         name: container.name || "",
         type: container.type || "wooden_barrel",
-        tareWeightLbs: container.tareWeightLbs?.toString() || "",
+        tareWeightLbs: container.tareWeight?.toString() || "",
         productType: productT,
         fillDate: fDate,
         grossWeightLbs: grossW,
         proof: prf,
-        account: container.currentFill?.account || "storage",
+        account: container.account || "storage",
       });
       setWineGallonsInput(wgInput);
       setProofGallonsInput(pgInput);
@@ -236,15 +235,22 @@ export const AddEditContainerModal = ({
     try {
       // Prepare container data for API
       const containerData = {
-        containerType: formData.type,
-        volumeGallons: parseFloat(formData.tareWeightLbs) || 0, // Using tare as volume for now
+        name: formData.name,
+        type: formData.type,
         productId: products.find(p => p.name === formData.productType)?.id || null,
+        status: (!formData.grossWeightLbs && !wineGallonsInput && !proofGallonsInput && !formData.proof) ? 'EMPTY' : 'FILLED',
+        account: formData.account || 'storage',
         proof: parseFloat(formData.proof) || 0,
+        tareWeight: parseFloat(formData.tareWeightLbs) || 0,
+        netWeight: calculated.netWeightLbs || 0,
         temperatureFahrenheit: 60, // Default temperature
         fillDate: formData.fillDate || null,
-        isEmpty: !formData.grossWeightLbs && !wineGallonsInput && !proofGallonsInput && !formData.proof
+        location: null,
+        notes: null
       };
 
+      console.log("Info:", containerData);
+      
       // Call the onSave function passed from parent
       await onSave(containerData);
       onClose();

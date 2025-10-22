@@ -6,6 +6,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import DashboardView from "./components/DashboardView";
 import InventoryView from "./components/InventoryView";
+import ProductsView from "./components/ProductsView";
 import ProductionViewUpdated from "./components/ProductionViewUpdated";
 
 // Main App Content Component
@@ -17,8 +18,10 @@ function AppContent() {
     switch (currentView) {
       case 'dashboard':
         return <DashboardView />;
-      case 'inventory':
+      case 'inventory-containers':
         return <InventoryView />;
+      case 'inventory-products':
+        return <ProductsView />;
       case 'production':
         return <ProductionViewUpdated />;
       case 'transfers':

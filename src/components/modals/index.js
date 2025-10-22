@@ -1,5 +1,6 @@
 // Modal component exports
 export { AddEditContainerModal } from './AddEditContainerModal';
+export { AddEditProductModal } from './AddEditProductModal';
 export { AddEditProductionModal } from './AddEditProductionModal';
 export { TransferModal } from './TransferModal';
 export { AdjustContentsModal } from './AdjustContentsModal';

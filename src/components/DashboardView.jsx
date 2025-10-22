@@ -22,8 +22,8 @@ const DashboardView = () => {
           transactionsAPI.getAll({ limit: 5 })
         ]);
 
-        const filledCount = containers.filter(c => !c.isEmpty).length;
-        const totalVol = containers.reduce((sum, c) => sum + Number(c.currentVolumeGallons || 0), 0);
+        const filledCount = containers.filter(c => c.status === 'FILLED').length;
+        const totalVol = containers.reduce((sum, c) => sum + Number(c.netWeight || 0), 0);
 
         setStats({
           totalContainers: containers.length,
