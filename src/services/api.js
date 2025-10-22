@@ -239,7 +239,6 @@ export const containersAPI = {
       body: JSON.stringify(containerData),
     });
   },
-
   // Delete container
   delete: async (id) => {
     return apiRequest(`/containers/${id}`, {
@@ -253,7 +252,20 @@ export const containersAPI = {
       method: 'POST',
       body: JSON.stringify({ containers }),
     });
+  },
+    // Proof down container
+  proofDown: async (proofDownData) => {
+    return apiRequest(`/container-operations/proof-down`, {
+      method: 'POST',
+      body: JSON.stringify({
+        containerId: proofDownData.containerId,
+        targetProof: proofDownData.targetProof,
+        }
+      ),
+    });
   }
+
+  
 };
 
 // Production API

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { AddEditContainerModal, ConfirmationModal } from "./modals";
+import { AddEditContainerModal, ConfirmationModal, ProofDownModal } from "./modals";
 import { containersAPI, productsAPI } from "../services/api";
 import { CONTAINER_CAPACITIES_GALLONS } from "../constants";
+import { calculateDerivedValuesFromWeight } from "../utils/helpers";
+
 
 const InventoryView = () => {
   const [inventory, setInventory] = useState([]);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showProofDownModal, setShowProofDownModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [error, setError] = useState("");
   const [editingContainer, setEditingContainer] = useState(null);
@@ -15,7 +18,7 @@ const InventoryView = () => {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Calculate pagination
   const totalPages = Math.ceil(inventory.length / itemsPerPage);
@@ -97,15 +100,51 @@ const InventoryView = () => {
   };
 
   const handleEditContainer = (container) => {
+    const grossWeight = Number(container.netWeight) + Number(container.tareWeight);
+    container.grossWeight = grossWeight.toFixed(2).toString();
+
     setEditingContainer(container);
     setShowFormModal(true);
-  };
+  }
 
   const handleProofDown = (container) => {
-    // TODO: Implement proof down functionality
-    console.log("Proof down for container:", container);
-  };
+    setEditingContainer(container);
+    setShowProofDownModal(true);
+  }
 
+  const handleProofDownSave = async (proofDownData) => {
+    try {
+      // Call the proof down API with calculated values
+      const response = await containersAPI.proofDown(proofDownData);
+
+      if (!response.ok) {
+        throw new Error('Proof down failed');
+      }
+
+      const updatedContainer = await response.json();
+      
+      // Update the inventory state
+      setInventory((prev) =>
+        prev.map((container) =>
+          container.id === proofDownData.containerId ? updatedContainer : container
+        )
+      );
+      
+      setShowProofDownModal(false);
+      setEditingContainer(null);
+      setError("");
+    } catch (err) {
+      console.error("Error proofing down container:", err);
+      setError("Failed to proof down container.");
+      throw err;
+    }
+  }
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  }
+  
   // Helper function to calculate container data
   const calculateContainerData = (container) => {
     const capacity = CONTAINER_CAPACITIES_GALLONS[container.type] || 0;
@@ -121,12 +160,12 @@ const InventoryView = () => {
     }
     
     // Calculate proof gallons from net weight (assuming 8.3 lbs per gallon)
-    const wineGallons = netWeight / 8.3;
-    const proofGallons = wineGallons * (proof / 100);
+    
     
     // Get actual weights from container data
     const tareWeight = container.tareWeight ? Number(container.tareWeight) : 0;
     const grossWeight = tareWeight + netWeight;
+    const {wineGallons, proofGallons} = calculateDerivedValuesFromWeight(tareWeight, grossWeight, proof);
     
     return {
       percentageFull: Math.min(100, Math.max(0, percentageFull)),
@@ -182,78 +221,94 @@ const InventoryView = () => {
         </div>
       ) : (
         <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider sticky left-0 bg-gray-700 z-10">
+          {/* Three-Part Table Structure */}
+          <div className="flex">
+            {/* Fixed Part 1: ID and Name */}
+            <div className="flex-shrink-0">
+              <div className="bg-gray-700 h-12">
+                <div className="flex h-full">
+                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
                     ID
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider sticky left-12 bg-gray-700 z-10">
+                  </div>
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
                     Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-800 divide-y divide-gray-700">
+                {currentContainers.map((container, index) => {
+                  return (
+                    <div key={container.id} className="flex hover:bg-gray-750 transition-colors h-16">
+                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300 border-r border-gray-600">
+                        {startIndex + index + 1}
+                      </div>
+                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap border-r border-gray-600">
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-white">
+                            {container.name || 'Unnamed'}
+                          </div>
+                          <div className="text-xs text-gray-400 capitalize">
+                            {container.type?.replace(/_/g, ' ')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Scrollable Part 2: Middle columns */}
+            <div className="flex-1 overflow-x-auto">
+              <div className="bg-gray-700 h-12">
+                <div className="flex min-w-max h-full">
+                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Account
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Product
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Fill Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-20 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Proof
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Tare Weight
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Gross Weight
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Net Weight
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Wine Gallons
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  </div>
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Proof Gallons
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider sticky right-0 bg-gray-700 z-10">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-800 divide-y divide-gray-700">
                 {currentContainers.map((container, index) => {
                   const calculated = calculateContainerData(container);
                   const product = products.find(p => p.id === container.productId);
                   
                   return (
-                    <tr key={container.id} className="hover:bg-gray-750 transition-colors">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300 sticky left-0 bg-gray-800">
-                        {startIndex + index + 1}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap sticky left-12 bg-gray-800">
-                        <div className="text-sm font-medium text-white">
-                          {container.name || 'Unnamed'}
-                        </div>
-                        <div className="text-xs text-gray-400 capitalize">
-                          {container.type?.replace(/_/g, ' ')}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                    <div key={container.id} className="flex hover:bg-gray-750 transition-colors h-16">
+                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium `}>
                           {container.account || 'Storage'}
                         </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                      </div>
+                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
+                        <div className="flex flex-col items-center justify-center space-y-1">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
                               className={`h-2 rounded-full ${
                                 container.status === 'FILLED' ? 'bg-green-500' : 'bg-gray-400'
@@ -265,35 +320,52 @@ const InventoryView = () => {
                             {container.status === 'FILLED' ? `${calculated.percentageFull.toFixed(0)}%` : 'Empty'}
                           </span>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-300">
+                      </div>
+                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
+                        <div className="text-sm text-gray-300 text-center">
                           {product?.name || 'No Product'}
                         </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                      </div>
+                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {container.fillDate ? new Date(container.fillDate).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                      </div>
+                      <div className="w-20 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {container.proof ? `${container.proof}°` : 'N/A'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                      </div>
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {calculated.tareWeight.toFixed(1)} lbs
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                      </div>
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {calculated.grossWeight.toFixed(1)} lbs
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                      </div>
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {calculated.netWeight.toFixed(1)} lbs
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                      </div>
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {calculated.wineGallons.toFixed(2)} gal
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-400">
+                      </div>
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium text-blue-400">
                         {calculated.proofGallons.toFixed(2)} PG
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-gray-800">
-                        <div className="flex justify-end space-x-2">
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Fixed Part 3: Actions */}
+            <div className="flex-shrink-0">
+              <div className="bg-gray-700 h-12">
+                <div className="w-48 px-4 flex items-center justify-center h-full text-xs font-medium text-gray-300 uppercase tracking-wider border-l border-gray-600">
+                  Actions
+                </div>
+              </div>
+              <div className="bg-gray-800 divide-y divide-gray-700">
+                {currentContainers.map((container, index) => {
+                  return (
+                    <div key={container.id} className="hover:bg-gray-750 transition-colors h-16">
+                      <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l border-gray-600 h-full">
+                        <div className="flex justify-center space-x-2">
                           <button
                             onClick={() => handleEditContainer(container)}
                             className="text-blue-400 hover:text-blue-300 font-medium"
@@ -316,97 +388,115 @@ const InventoryView = () => {
                             Delete
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
           
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bg-gray-700 px-6 py-3 flex items-center justify-between border-t border-gray-600">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">
-                    Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, inventory.length)}</span> of{' '}
-                    <span className="font-medium">{inventory.length}</span> results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    
-                    {/* Page numbers */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                      // Show only a few page numbers around current page
-                      if (
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 1 && page <= currentPage + 1)
-                      ) {
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              page === currentPage
-                                ? 'z-10 bg-blue-600 border-blue-600 text-white'
-                                : 'bg-gray-800 border-gray-300 text-gray-300 hover:bg-gray-700'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      } else if (
-                        page === currentPage - 2 ||
-                        page === currentPage + 2
-                      ) {
-                        return (
-                          <span key={page} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-800 text-sm font-medium text-gray-500">
-                            ...
-                          </span>
-                        );
-                      }
-                      return null;
-                    })}
-                    
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                  </nav>
-                </div>
-              </div>
+          <div className="bg-gray-700 px-6 py-3 flex items-center justify-between border-t border-gray-600">
+            {/* Items per page selector */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-400">Show:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="bg-gray-800 border border-gray-600 text-gray-300 text-sm rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-sm text-gray-400">per page</span>
             </div>
-          )}
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <>
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-400">
+                      Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                      <span className="font-medium">{Math.min(endIndex, inventory.length)}</span> of{' '}
+                      <span className="font-medium">{inventory.length}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      
+                      {/* Page numbers */}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        // Show only a few page numbers around current page
+                        if (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                page === currentPage
+                                  ? 'z-10 bg-blue-600 border-blue-600 text-white'
+                                  : 'bg-gray-800 border-gray-300 text-gray-300 hover:bg-gray-700'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        } else if (
+                          page === currentPage - 2 ||
+                          page === currentPage + 2
+                        ) {
+                          return (
+                            <span key={page} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-800 text-sm font-medium text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                      
+                      <button
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -423,7 +513,7 @@ const InventoryView = () => {
           products={products}
           onSave={
             editingContainer
-              ? (id, data) => handleUpdateContainer(editingContainer.id, data)
+              ? (data) => handleUpdateContainer(editingContainer.id, data)
               : handleAddContainer
           }
         />
@@ -443,6 +533,18 @@ const InventoryView = () => {
           }}
           title="Confirm Delete"
           message="Are you sure you want to delete this container?"
+        />
+      )}
+
+      {showProofDownModal && (
+        <ProofDownModal
+          isOpen={showProofDownModal}
+          onClose={() => {
+            setShowProofDownModal(false);
+            setEditingContainer(null);
+          }}
+          container={editingContainer}
+          onSave={handleProofDownSave}
         />
       )}
     </div>
