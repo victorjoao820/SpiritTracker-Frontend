@@ -1,65 +1,94 @@
-import React, { useState, useEffect, createContext } from 'react';
-import { authAPI } from '../services/api.js';
+import React, { useState, useEffect, createContext, useCallback } from 'react';
+import { authAPI, usersAPI } from '../services/api.js';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is authenticated on app load
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (authAPI.isAuthenticated()) {
-          const response = await authAPI.verifyToken();
-          setUser(response.user);
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        authAPI.removeTokens();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
+  const logout = useCallback(async () => {
+    authAPI.removeTokens();
+    setIsAuthenticated(false);
+    setUser(null);
   }, []);
 
-  // Login function
-  const login = async (email, password) => {
-    const response = await authAPI.login(email, password);
-    authAPI.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
-    setUser(response.user);
-    setIsAuthenticated(true);
-    return response;
-  };
+  const checkAuth = useCallback(async () => {
+    // Check if user has any tokens (access or refresh)
+    const hasAccessToken = authAPI.isAuthenticated();
+    const hasRefreshToken = !!localStorage.getItem('refreshToken');
+    
+    if (!hasAccessToken && !hasRefreshToken) {
+      // No tokens at all - user is not authenticated
+      setIsAuthenticated(false);
+      setUser(null);
+      return;
+    }
+    
+    // User has tokens, try to validate/refresh
+    try {
+      const response = await usersAPI.getProfile();
+      setIsAuthenticated(true);
+      
+      // If validation passes but no user data, fetch it
+      if (response && response.user && !user) {
+        setUser(response.user);
+      }
+    } catch (error) {
+      console.error('Auth validation failed:', error);
+      // Only clear auth state if refresh token is also invalid
+      setIsAuthenticated(false);
+      setUser(null);
+    }
+  }, [user]);
 
-  // Register function
-  const register = async (email, password) => {
-    const response = await authAPI.register(email, password);
-    authAPI.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
-    setUser(response.user);
-    setIsAuthenticated(true);
-    return response;
-  };
+  useEffect(() => {
+    // Initial auth check on mount
+    const initializeAuth = async () => {
+      await checkAuth();
+      setIsLoading(false);
+    };
+    
+    initializeAuth();
+  }, [checkAuth]);
 
-  // Logout function
-  const logout = () => {
-    authAPI.removeTokens();
-    setUser(null);
-    setIsAuthenticated(false);
-  };
+  const login = useCallback(async (email, password) => {
+    try {
+      const response = await authAPI.login(email, password);
+      authAPI.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
+      setUser(response.user);
+      setIsAuthenticated(true);
+      return response;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  }, []);
+
+  const register = useCallback(async (email, password) => {
+    try {
+      const response = await authAPI.register(email, password);
+      authAPI.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
+      setUser(response.user);
+      setIsAuthenticated(true);
+      return response;
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
+    }
+  }, []);
 
   const value = {
-    user,
-    isLoading,
     isAuthenticated,
+    isLoading,
+    user,
+    setIsAuthenticated,
+    setUser,
+    checkAuth,
+    logout,
     login,
     register,
-    logout
   };
 
   return (

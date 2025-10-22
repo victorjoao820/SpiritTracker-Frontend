@@ -142,11 +142,6 @@ export const authAPI = {
     });
   },
 
-  // Verify token
-  verifyToken: async () => {
-    return apiRequest('/auth/verify');
-  },
-
   // Refresh token
   refreshToken: async () => {
     return refreshAccessToken();
