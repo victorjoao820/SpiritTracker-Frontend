@@ -1,17 +1,21 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 
-const Header = ({ user, onLogout, currentView }) => {
+const Header = ({ user, onLogout }) => {
+  const location = useLocation();
+  
   const getViewTitle = () => {
     const titles = {
-      dashboard: 'Dashboard',
-      inventory: 'Inventory Management',
-      production: 'Production Batches',
-      transfers: 'Spirit Transfers',
-      transactions: 'Transaction History',
-      reports: 'Reports & Analytics',
-      settings: 'Settings',
+      '/dashboard': 'Dashboard',
+      '/inventory/containers': 'Inventory - Containers',
+      '/inventory/products': 'Inventory - Products',
+      '/production': 'Production Batches',
+      '/transfers': 'Spirit Transfers',
+      '/transactions': 'Transaction History',
+      '/reports': 'Reports & Analytics',
+      '/settings': 'Settings',
     };
-    return titles[currentView] || 'Spirit Tracker';
+    return titles[location.pathname] || 'Spirit Tracker';
   };
 
   return (

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { 
   HomeIcon, 
   CubeIcon, 
@@ -11,25 +12,33 @@ import {
   ChevronRightIcon
 } from './icons/NavigationIcons';
 
-const Sidebar = ({ currentView, onViewChange }) => {
+const Sidebar = () => {
   const [expandedMenus, setExpandedMenus] = useState({});
+  const location = useLocation();
+  
+  // Auto-expand inventory menu when on inventory pages
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/inventory')) {
+      setExpandedMenus(prev => ({ ...prev, inventory: true }));
+    }
+  }, [location.pathname]);
   
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
+    { id: 'dashboard', label: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
     { 
       id: 'inventory', 
       label: 'Inventory', 
       icon: CubeIcon,
       submenu: [
-        { id: 'inventory-containers', label: 'Containers' },
-        { id: 'inventory-products', label: 'Products' }
+        { id: 'inventory-containers', label: 'Containers', path: '/inventory/containers' },
+        { id: 'inventory-products', label: 'Products', path: '/inventory/products' }
       ]
     },
-    { id: 'production', label: 'Production', icon: BeakerIcon },
-    { id: 'transfers', label: 'Transfers', icon: ArrowsRightLeftIcon },
-    { id: 'transactions', label: 'Transactions', icon: ChartBarIcon },
-    { id: 'reports', label: 'Reports', icon: DocumentTextIcon },
-    { id: 'settings', label: 'Settings', icon: CogIcon },
+    { id: 'production', label: 'Production', icon: BeakerIcon, path: '/production' },
+    { id: 'transfers', label: 'Transfers', icon: ArrowsRightLeftIcon, path: '/transfers' },
+    { id: 'transactions', label: 'Transactions', icon: ChartBarIcon, path: '/transactions' },
+    { id: 'reports', label: 'Reports', icon: DocumentTextIcon, path: '/reports' },
+    { id: 'settings', label: 'Settings', icon: CogIcon, path: '/settings' },
   ];
 
   const toggleMenu = (menuId) => {
@@ -44,7 +53,7 @@ const Sidebar = ({ currentView, onViewChange }) => {
   };
 
   const isSubmenuActive = (submenuItems) => {
-    return submenuItems.some(item => currentView === item.id);
+    return submenuItems.some(item => location.pathname === item.path);
   };
 
   return (
@@ -60,8 +69,7 @@ const Sidebar = ({ currentView, onViewChange }) => {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const hasSubmenu = item.submenu && item.submenu.length > 0;
-            const isActive = currentView === item.id;
-            const isSubmenuActive = hasSubmenu && item.submenu.some(subItem => currentView === subItem.id);
+            const isSubmenuActive = hasSubmenu && item.submenu.some(subItem => location.pathname === subItem.path);
             const isExpanded = isMenuExpanded(item.id);
             
             return (
@@ -91,39 +99,40 @@ const Sidebar = ({ currentView, onViewChange }) => {
                     {/* Submenu items */}
                     {isExpanded && (
                       <ul className="ml-6 mt-1 space-y-1">
-                        {item.submenu.map((subItem) => {
-                          const isSubItemActive = currentView === subItem.id;
-                          return (
-                            <li key={subItem.id}>
-                              <button
-                                onClick={() => onViewChange(subItem.id)}
-                                className={`w-full flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
-                                  isSubItemActive
+                        {item.submenu.map((subItem) => (
+                          <li key={subItem.id}>
+                            <NavLink
+                              to={subItem.path}
+                              className={({ isActive }) =>
+                                `w-full flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
+                                  isActive
                                     ? 'bg-blue-500 text-white'
                                     : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-                                }`}
-                              >
-                                <span>{subItem.label}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
+                                }`
+                              }
+                            >
+                              <span>{subItem.label}</span>
+                            </NavLink>
+                          </li>
+                        ))}
                       </ul>
                     )}
                   </>
                 ) : (
                   /* Regular menu item without submenu */
-                  <button
-                    onClick={() => onViewChange(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
+                  <NavLink
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`
+                    }
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-medium">{item.label}</span>
-                  </button>
+                  </NavLink>
                 )}
               </li>
             );
