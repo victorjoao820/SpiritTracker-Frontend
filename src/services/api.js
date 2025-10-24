@@ -255,6 +255,7 @@ export const containersAPI = {
       body: JSON.stringify({
         containerId: proofDownData.containerId,
         targetProof: proofDownData.targetProof,
+        finalWineGallons: proofDownData.finalWineGallons,
         }
       ),
     });
@@ -263,39 +264,85 @@ export const containersAPI = {
   
 };
 
-// Production API
-export const productionAPI = {
-  // Get all production batches
+// Fermentation API
+export const fermentationAPI = {
+  // Get all fermentation batches
   getAll: async () => {
-    return apiRequest('/production');
+    return apiRequest('/fermentation');
   },
 
-  // Get single production batch
+  // Get single fermentation batch
   getById: async (id) => {
-    return apiRequest(`/production/${id}`);
+    return apiRequest(`/fermentation/${id}`);
   },
 
-  // Create production batch
+  // Create fermentation batch
   create: async (batchData) => {
-    return apiRequest('/production', {
+    return apiRequest('/fermentation', {
       method: 'POST',
       body: JSON.stringify(batchData),
     });
   },
 
-  // Update production batch
+  // Update fermentation batch
   update: async (id, batchData) => {
-    return apiRequest(`/production/${id}`, {
+    return apiRequest(`/fermentation/${id}`, {
       method: 'PUT',
       body: JSON.stringify(batchData),
     });
   },
 
-  // Delete production batch
+  // Delete fermentation batch
   delete: async (id) => {
-    return apiRequest(`/production/${id}`, {
+    return apiRequest(`/fermentation/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  // Get fermentation batches for TTB report
+  getForTTBReport: async (year, month) => {
+    return apiRequest(`/ttb-reports/fermentation/${year}/${month}`);
+  }
+};
+
+// Distillation API
+export const distillationAPI = {
+  // Get all distillation batches
+  getAll: async () => {
+    return apiRequest('/distillation');
+  },
+
+  // Get single distillation batch
+  getById: async (id) => {
+    return apiRequest(`/distillation/${id}`);
+  },
+
+  // Create distillation batch
+  create: async (batchData) => {
+    return apiRequest('/distillation', {
+      method: 'POST',
+      body: JSON.stringify(batchData),
+    });
+  },
+
+  // Update distillation batch
+  update: async (id, batchData) => {
+    return apiRequest(`/distillation/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(batchData),
+    });
+  },
+
+  // Delete distillation batch
+  delete: async (id) => {
+    return apiRequest(`/distillation/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Get distillation batches for TTB report
+  getForTTBReport: async (year, month) => {
+    return apiRequest(`/ttb-reports/distillation/${year}/${month}`);
   }
 };
 
@@ -391,13 +438,77 @@ export const containerOperationsAPI = {
   }
 };
 
+// TTB Reports API
+export const ttbReportsAPI = {
+  // Get all TTB reports
+  getAll: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    return apiRequest(`/ttb-reports?${queryParams}`);
+  },
+
+  // Get single TTB report
+  getById: async (id) => {
+    return apiRequest(`/ttb-reports/${id}`);
+  },
+
+  // Create TTB report
+  create: async (reportData) => {
+    return apiRequest('/ttb-reports', {
+      method: 'POST',
+      body: JSON.stringify(reportData),
+    });
+  },
+
+  // Update TTB report
+  update: async (id, reportData) => {
+    return apiRequest(`/ttb-reports/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(reportData),
+    });
+  },
+
+  // Delete TTB report
+  delete: async (id) => {
+    return apiRequest(`/ttb-reports/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Generate monthly production report
+  generateMonthlyProduction: async (year, month) => {
+    return apiRequest(`/ttb-reports/generate/monthly-production/${year}/${month}`);
+  },
+
+  // Generate monthly inventory report
+  generateMonthlyInventory: async (year, month) => {
+    return apiRequest(`/ttb-reports/generate/monthly-inventory/${year}/${month}`);
+  },
+
+  // Get TTB report statistics
+  getStats: async () => {
+    return apiRequest('/ttb-reports/stats/summary');
+  },
+
+  // Get fermentation batches for TTB report
+  getFermentationBatches: async (year, month) => {
+    return apiRequest(`/ttb-reports/fermentation/${year}/${month}`);
+  },
+
+  // Get distillation batches for TTB report
+  getDistillationBatches: async (year, month) => {
+    return apiRequest(`/ttb-reports/distillation/${year}/${month}`);
+  }
+};
+
 // Export all APIs
 export default {
   auth: authAPI,
   products: productsAPI,
   containers: containersAPI,
   containerOperations: containerOperationsAPI,
-  production: productionAPI,
+  fermentation: fermentationAPI,
+  distillation: distillationAPI,
+  ttbReports: ttbReportsAPI,
   transactions: transactionsAPI,
   users: usersAPI
 };

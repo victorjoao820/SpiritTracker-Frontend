@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { usersAPI, containersAPI, productionAPI, transactionsAPI } from '../services/api';
+import { usersAPI, containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../services/api';
 
 const DashboardView = () => {
   const [stats, setStats] = useState({
@@ -18,7 +18,8 @@ const DashboardView = () => {
         setIsLoading(true);
         const [containers, production, transactions] = await Promise.all([
           containersAPI.getAll(),
-          productionAPI.getAll(),
+          fermentationAPI.getAll(),
+          distillationAPI.getAll(),
           transactionsAPI.getAll({ limit: 5 })
         ]);
 

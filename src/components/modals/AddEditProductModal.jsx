@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { productsAPI } from "../../services/api";
+import { DEFAULT_PRODUCTS } from "../../constants";
 
 export const AddEditProductModal = ({ isOpen, onClose, onSave, mode = "add", product = null }) => {
   const [products, setProducts] = useState([]);
@@ -37,6 +38,25 @@ export const AddEditProductModal = ({ isOpen, onClose, onSave, mode = "add", pro
       setProducts(data);
     } catch (err) {
       console.error("Failed to fetch products", err);
+    }
+  };
+
+  // Generate description based on product name
+  const generateDescription = () => {
+    if (!productName.trim()) {
+      setFormError("Please enter a product name first.");
+      return;
+    }
+
+    const matchedProduct = DEFAULT_PRODUCTS.find(defaultProduct => 
+      defaultProduct.name.toLowerCase() === productName.trim().toLowerCase()
+    );
+
+    if (matchedProduct) {
+      setProductDescription(matchedProduct.description);
+      setFormError("");
+    } else {
+      setFormError("No matching description found for this product name.");
     }
   };
 
@@ -156,7 +176,15 @@ export const AddEditProductModal = ({ isOpen, onClose, onSave, mode = "add", pro
           </div>
 
           {/* Buttons */}
+
           <div className="flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={generateDescription}
+              className="bg-orange-500 hover:bg-orange-400 text-white text-base font-medium py-1 px-3 rounded-md transition-colors"
+            >
+              Generate
+            </button>
             {!editingProduct ? (
               <button
                 onClick={handleAddProduct}

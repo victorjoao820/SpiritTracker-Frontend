@@ -9,8 +9,10 @@ import Header from "./components/Header";
 import DashboardView from "./components/DashboardView";
 import InventoryView from "./components/InventoryView";
 import ProductsView from "./components/ProductsView";
-import ProductionViewUpdated from "./components/ProductionViewUpdated";
+import FermentationView from "./components/FermentationView";
+
 import AuthRedirect from "./routes/AuthRedirect";
+import DistillationView from "./components/DistillationView";
 
 // Placeholder components for routes that aren't implemented yet
 const TransfersView = () => (
@@ -91,10 +93,17 @@ function AppContent() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      <Route path="/production" element={
+      <Route path="/production/fermentation" element={
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <ProductionViewUpdated />
+            <FermentationView />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/production/distillation" element={
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <DistillationView />
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />

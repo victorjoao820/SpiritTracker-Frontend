@@ -83,8 +83,9 @@ export const AddEditContainerModal = ({
       setIsAddingEmpty(true);
       setFormData({
         ...initialFormData,
-        productType: productT,
+        productType: "",
         account: "storage",
+        status: "EMPTY"
       });
       setWineGallonsInput("");
       setProofGallonsInput("");
@@ -233,12 +234,13 @@ export const AddEditContainerModal = ({
     setFormError("");
 
     try {
+      // Determine if container is empty
       // Prepare container data for API
       const containerData = {
         name: formData.name,
         type: formData.type,
-        productId: products.find(p => p.name === formData.productType)?.id || null,
-        status: (!formData.grossWeightLbs && !wineGallonsInput && !proofGallonsInput && !formData.proof) ? 'EMPTY' : 'FILLED',
+        productId:  isAddingEmpty? null : (products.find(p => p.name === formData.productType)?.id || null),
+        status: isAddingEmpty ? 'EMPTY' : 'FILLED',
         account: formData.account || 'storage',
         proof: parseFloat(formData.proof) || 0,
         tareWeight: parseFloat(formData.tareWeightLbs) || 0,
@@ -249,8 +251,6 @@ export const AddEditContainerModal = ({
         notes: null
       };
 
-      console.log("Info:", containerData);
-      
       // Call the onSave function passed from parent
       await onSave(containerData);
       onClose();

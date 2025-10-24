@@ -34,7 +34,12 @@ const Sidebar = () => {
         { id: 'inventory-products', label: 'Products', path: '/inventory/products' }
       ]
     },
-    { id: 'production', label: 'Production', icon: BeakerIcon, path: '/production' },
+    { id: 'production', label: 'Production', icon: BeakerIcon,
+      submenu:[
+        { id: 'production-fermentation', label: 'Fermentation', path: '/production/fermentation' },
+        { id: 'production-distillation', label: 'Distillation', path: '/production/distillation' },
+      ] 
+    },
     { id: 'transfers', label: 'Transfers', icon: ArrowsRightLeftIcon, path: '/transfers' },
     { id: 'transactions', label: 'Transactions', icon: ChartBarIcon, path: '/transactions' },
     { id: 'reports', label: 'Reports', icon: DocumentTextIcon, path: '/reports' },

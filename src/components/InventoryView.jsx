@@ -51,6 +51,7 @@ const InventoryView = () => {
   const handleAddContainer = async (containerData) => {
     try {
       const newContainer = await containersAPI.create(containerData);
+
       setInventory((prev) => [...prev, newContainer]);
       setShowFormModal(false);
       setError("");
@@ -115,14 +116,11 @@ const InventoryView = () => {
   const handleProofDownSave = async (proofDownData) => {
     try {
       // Call the proof down API with calculated values
-      const response = await containersAPI.proofDown(proofDownData);
+      const updatedContainer = await containersAPI.proofDown(proofDownData);
 
-      if (!response.ok) {
+      if (!updatedContainer.success) {
         throw new Error('Proof down failed');
       }
-
-      const updatedContainer = await response.json();
-      
       // Update the inventory state
       setInventory((prev) =>
         prev.map((container) =>
@@ -214,9 +212,10 @@ const InventoryView = () => {
         </div>
       ) : (
         <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-          {/* Three-Part Table Structure */}
+          {/* Three Separate Tables That Look Like One */}
           <div className="flex">
-            {/* Fixed Part 1: ID and Name */}
+            
+            {/* Table 1: ID, Name, Account */}
             <div className="flex-shrink-0">
               <div className="bg-gray-700 h-12">
                 <div className="flex h-full">
@@ -225,6 +224,9 @@ const InventoryView = () => {
                   </div>
                   <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
                     Name
+                  </div>
+                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
+                    Account
                   </div>
                 </div>
               </div>
@@ -245,19 +247,21 @@ const InventoryView = () => {
                           </div>
                         </div>
                       </div>
+                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm text-pink-300 border-r border-gray-600">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium `}>
+                          {container.account || 'Storage'}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
             
-            {/* Scrollable Part 2: Middle columns */}
+            {/* Table 2: Status, Product, Fill Date, Proof, Tare Weight, Gross Weight, Net Weight, Wine Gallons, Proof Gallons */}
             <div className="flex-1 overflow-x-auto">
               <div className="bg-gray-700 h-12">
                 <div className="flex min-w-max h-full">
-                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Account
-                  </div>
                   <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Status
                   </div>
@@ -294,14 +298,9 @@ const InventoryView = () => {
                   
                   return (
                     <div key={container.id} className="flex hover:bg-gray-750 transition-colors h-16">
-                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium `}>
-                          {container.account || 'Storage'}
-                        </span>
-                      </div>
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
                         <div className="flex flex-col items-center justify-center space-y-1">
-                          <div className="w-8 bg-gray-200  h-2">
+                          <div className="w-8 bg-gray-200 h-2">
                             <div 
                               className={`h-2 ${
                                 container.status === 'FILLED' ? 'bg-yellow-500' : 'bg-gray-400'
@@ -346,7 +345,7 @@ const InventoryView = () => {
               </div>
             </div>
             
-            {/* Fixed Part 3: Actions */}
+            {/* Table 3: Actions */}
             <div className="flex-shrink-0">
               <div className="bg-gray-700 h-12">
                 <div className="w-48 px-4 flex items-center justify-center h-full text-xs font-medium text-gray-300 uppercase tracking-wider border-l border-gray-600">
@@ -373,9 +372,9 @@ const InventoryView = () => {
                           </button>
                           <button
                             onClick={() => {
-                setItemToDelete(container);
-                setShowConfirmModal(true);
-              }}
+                              setItemToDelete(container);
+                              setShowConfirmModal(true);
+                            }}
                             className="text-red-400 hover:text-red-300 font-medium"
                           >
                             Delete
@@ -514,8 +513,8 @@ const InventoryView = () => {
 
       {showConfirmModal && (
         <ConfirmationModal
-          isOpen={showConfirmModal}
-          onClose={() => {
+          message="Are you sure you want to delete this container?"
+          onCancel={() => {
             setShowConfirmModal(false);
             setItemToDelete(null);
           }}
@@ -524,8 +523,6 @@ const InventoryView = () => {
               handleDeleteContainer(itemToDelete.id);
             }
           }}
-          title="Confirm Delete"
-          message="Are you sure you want to delete this container?"
         />
       )}
 

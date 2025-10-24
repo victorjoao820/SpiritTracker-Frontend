@@ -1,119 +1,90 @@
-import React, { useState, useEffect } from "react";
-import { AddEditProductModal, ConfirmationModal } from "./modals";
-import { productsAPI } from "../services/api";
+import React, { useState, useEffect } from 'react';
+import { AddEditFermentationModal, ConfirmationModal } from './modals';
+import { fermentationAPI } from '../services/api';
 
-const ProductsView = () => {
-  const [products, setProducts] = useState([]);
+const FermentationView = () => {
+  const [batches, setBatches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingBatch, setEditingBatch] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
-  const [editingProduct, setEditingProduct] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [error, setError] = useState('');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   
   // Calculate pagination
-  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const totalPages = Math.ceil(batches.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentProducts = products.slice(startIndex, endIndex);
+  const currentBatches = batches.slice(startIndex, endIndex);
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
-      const fetchedProducts = await productsAPI.getAll();
-      setProducts(fetchedProducts);
-      setError("");
+      const fetchedBatches = await fermentationAPI.getAll();
+      setBatches(fetchedBatches);
+      setError('');
     } catch (err) {
-      console.error("Error fetching products:", err);
-      setError("Failed to fetch products.");
+      console.error('Error fetching fermentation data:', err);
+      setError('Failed to fetch fermentation data.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddProduct = async (productData) => {
+  const handleAddBatch = async (batchData) => {
     try {
-      // If productData is already a product object (from modal callback), use it directly
-
-      if (productData.id) {
-        setProducts((prev) => [...prev, productData]);
-        setShowAddProductModal(false);
-        setError("");
-      } else {
-        // If productData is raw data, create the product
-        const newProduct = await productsAPI.create(productData);
-        setProducts((prev) => [...prev, newProduct]);
-        setShowAddProductModal(false);
-        setError("");
-      }
+      const newBatch = await fermentationAPI.create(batchData);
+      setBatches(prev => [...prev, newBatch]);
+      setShowModal(false);
+      setError('');
     } catch (err) {
-      console.error("Error adding product:", err);
-      setError("Failed to add product.");
+      console.error('Error adding production batch:', err);
+      setError('Failed to add production batch.');
       throw err;
     }
   };
 
-  const handleDeleteProduct = async (id) => {
+  const handleUpdateBatch = async (id, batchData) => {
     try {
-      await productsAPI.delete(id);
-      setProducts((prev) => prev.filter((product) => product.id !== id));
+      const updatedBatch = await fermentationAPI.update(id, batchData);
+      setBatches(prev =>
+        prev.map(batch => (batch.id === id ? updatedBatch : batch))
+      );
+      setShowModal(false);
+      setEditingBatch(null);
+      setError('');
+    } catch (err) {
+      console.error('Error updating production batch:', err);
+      setError('Failed to update production batch.');
+      throw err;
+    }
+  };
+
+  const handleDeleteBatch = async (id) => {
+    try {
+      await fermentationAPI.delete(id);
+      setBatches(prev => prev.filter(batch => batch.id !== id));
       setShowConfirmModal(false);
-      setProductToDelete(null);
-      setError("");
+      setItemToDelete(null);
+      setError('');
       
       // Reset to first page if current page becomes empty
-      const remainingProducts = products.filter((product) => product.id !== id);
-      const newTotalPages = Math.ceil(remainingProducts.length / itemsPerPage);
+      const remainingBatches = batches.filter((batch) => batch.id !== id);
+      const newTotalPages = Math.ceil(remainingBatches.length / itemsPerPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
     } catch (err) {
-      console.error("Error deleting product:", err);
-      setError("Failed to delete product.");
-    }
-  };
-
-  const handleEditProduct = (product) => {
-    setEditingProduct(product);
-    setShowAddProductModal(true);
-  };
-
-  const handleUpdateProduct = async (productData) => {
-    try {
-      // If productData is already a product object (from modal callback), use it directly
-      if (productData.id) {
-        setProducts((prev) =>
-          prev.map((product) =>
-            product.id === productData.id ? productData : product
-          )
-        );
-        setShowAddProductModal(false);
-        setEditingProduct(null);
-        setError("");
-      } else {
-        // If productData is raw data, update the product
-        const updatedProduct = await productsAPI.update(editingProduct.id, productData);
-        setProducts((prev) =>
-          prev.map((product) =>
-            product.id === editingProduct.id ? updatedProduct : product
-          )
-        );
-        setShowAddProductModal(false);
-        setEditingProduct(null);
-        setError("");
-      }
-    } catch (err) {
-      console.error("Error updating product:", err);
-      setError("Failed to update product.");
-      throw err;
+      console.error('Error deleting fermentation batch:', err);
+      setError('Failed to delete fermentation batch.');
     }
   };
 
@@ -123,36 +94,42 @@ const ProductsView = () => {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold text-white">
-            Spirit Products
+            Fermentation Batches
           </h3>
           <p className="text-sm text-gray-400">
-            Manage your distillery products and spirits
+            Manage your fermentation batches and brewing process
           </p>
         </div>
         <button
-          onClick={() => setShowAddProductModal(true)}
-          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-medium transition-colors"
+          onClick={() => {
+            setEditingBatch(null);
+            setShowModal(true);
+          }}
+          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          + Add Product
+          + Add Fermentation Batch
         </button>
       </div>
 
       {/* Error Message */}
       {error && <div className="bg-red-700 p-4 rounded-lg">{error}</div>}
 
-      {/* Products Table */}
+      {/* Fermentation Table */}
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-400">Loading products...</div>
+          <div className="text-gray-400">Loading fermentation batches...</div>
         </div>
-      ) : products.length === 0 ? (
+      ) : batches.length === 0 ? (
         <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-          <p className="text-gray-400 mb-4">No products found</p>
+          <p className="text-gray-400 mb-4">No fermentation batches found</p>
           <button
-            onClick={() => setShowAddProductModal(true)}
-            className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
+            onClick={() => {
+              setEditingBatch(null);
+              setShowModal(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
           >
-            Add Your First Product
+            Add Your First Batch
           </button>
         </div>
       ) : (
@@ -163,13 +140,25 @@ const ProductsView = () => {
               <thead className="bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    ID
+                    #
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Name
+                    Batch Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Description
+                    Start Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Volume (gal)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    OG
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    FG
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Status
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Actions
@@ -177,32 +166,60 @@ const ProductsView = () => {
                 </tr>
               </thead>
               <tbody className="bg-gray-800 divide-y divide-gray-700">
-                {currentProducts.map((product, index) => (
-                  <tr key={product.id} className="hover:bg-gray-750 transition-colors">
+                {currentBatches.map((batch, index) => (
+                  <tr key={batch.id} className="hover:bg-gray-750 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {startIndex + index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-white">
-                        {product.name}
+                        {batch.batchNumber || batch.batchName || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-400 max-w-xs truncate">
-                        {product.description || 'No description'}
-                      </div>
+                    <td className="px-6 py-4 text-sm text-gray-300">
+                      {batch.startDate ? (
+                        <div className="space-y-1">
+                          <div>{new Date(batch.startDate).toLocaleDateString()}</div>
+                          <div className="text-xs text-gray-400">
+                            {new Date(batch.startDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </div>
+                        </div>
+                      ) : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {batch.volumeGallons ? `${batch.volumeGallons}` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {batch.startSG ? batch.startSG : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {batch.finalGravity ? batch.finalGravity : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        batch.status === 'COMPLETED' 
+                          ? 'bg-green-100 text-green-800' 
+                          : batch.status === 'IN_PROGRESS'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {batch.status || 'N/A'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <button
-                          onClick={() => handleEditProduct(product)}
+                          onClick={() => {
+                            setEditingBatch(batch);
+                            setShowModal(true);
+                          }}
                           className="text-blue-400 hover:text-blue-300 font-medium"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => {
-                            setProductToDelete(product);
+                            setItemToDelete(batch);
                             setShowConfirmModal(true);
                           }}
                           className="text-red-400 hover:text-red-300 font-medium"
@@ -240,8 +257,8 @@ const ProductsView = () => {
                 <div>
                   <p className="text-sm text-gray-400">
                     Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, products.length)}</span> of{' '}
-                    <span className="font-medium">{products.length}</span> results
+                    <span className="font-medium">{Math.min(endIndex, batches.length)}</span> of{' '}
+                    <span className="font-medium">{batches.length}</span> results
                   </p>
                 </div>
                 <div>
@@ -304,29 +321,33 @@ const ProductsView = () => {
       )}
 
       {/* Modals */}
-      {showAddProductModal && (
-        <AddEditProductModal
-          isOpen={showAddProductModal}
+      {showModal && (
+        <AddEditFermentationModal
+          isOpen={showModal}
           onClose={() => {
-            setShowAddProductModal(false);
-            setEditingProduct(null);
+            setShowModal(false);
+            setEditingBatch(null);
           }}
-          mode={editingProduct ? "edit" : "add"}
-          product={editingProduct}
-          onSave={editingProduct ? handleUpdateProduct : handleAddProduct}
+          mode={editingBatch ? 'edit' : 'add'}
+          batch={editingBatch}
+          onSave={
+            editingBatch
+              ? (data) => handleUpdateBatch(editingBatch.id, data)
+              : handleAddBatch
+          }
         />
       )}
 
       {showConfirmModal && (
         <ConfirmationModal
-          message="Are you sure you want to delete this product?"
+          message="Are you sure you want to delete this fermentation batch?"
           onCancel={() => {
             setShowConfirmModal(false);
-            setProductToDelete(null);
+            setItemToDelete(null);
           }}
           onConfirm={() => {
-            if (productToDelete) {
-              handleDeleteProduct(productToDelete.id);
+            if (itemToDelete) {
+              handleDeleteBatch(itemToDelete.id);
             }
           }}
         />
@@ -335,4 +356,5 @@ const ProductsView = () => {
   );
 };
 
-export default ProductsView;
+export default FermentationView;
+
