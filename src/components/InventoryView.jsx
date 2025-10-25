@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AddEditContainerModal, ConfirmationModal, ProofDownModal } from "./modals";
 import { containersAPI, productsAPI } from "../services/api";
 import { CONTAINER_CAPACITIES_GALLONS } from "../constants";
-import { calculateDerivedValuesFromWeight } from "../utils/helpers";
+import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../utils/helpers";
 
 
 const InventoryView = () => {
@@ -148,10 +148,11 @@ const InventoryView = () => {
     const capacity = CONTAINER_CAPACITIES_GALLONS[container.type] || 0;
     const netWeight = container.netWeight ? Number(container.netWeight) : 0;
     const proof = container.proof ? Number(container.proof) : 0;
-    
+    const temperatureFahrenheit = container.temperatureFahrenheit? Number(container.temperatureFahrenheit) : 60;
     // Calculate percentage full based on net weight (simplified)
+
     let percentageFull = 0;
-    percentageFull = ((netWeight * 100) / capacity).toFixed(0);
+    percentageFull = ((netWeight * 100) /(calculateSpiritDensity(proof, temperatureFahrenheit) *capacity)).toFixed(0);
 
     // Get actual weights from container data
     const tareWeight = container.tareWeight ? Number(container.tareWeight) : 0;

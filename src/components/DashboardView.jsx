@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usersAPI, containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../services/api';
+import { Dashboard } from './Dashboard';
 
 const DashboardView = () => {
   const [stats, setStats] = useState({
@@ -25,8 +26,10 @@ const DashboardView = () => {
 
         const filledCount = containers.filter(c => c.status === 'FILLED').length;
         const totalVol = containers.reduce((sum, c) => sum + Number(c.netWeight || 0), 0);
+        // const totalProofGallons = 
 
         setStats({
+          containers: containers,
           totalContainers: containers.length,
           filledContainers: filledCount,
           emptyContainers: containers.length - filledCount,
@@ -34,6 +37,8 @@ const DashboardView = () => {
           totalVolume: totalVol,
           recentTransactions: transactions.transactions || transactions || []
         });
+
+        
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -82,13 +87,16 @@ const DashboardView = () => {
         />
       </div>
 
+      <Dashboard inventory={stats.containers}
+
+      />
       {/* Volume Stats */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      {/* <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold mb-4 text-white">Total Volume</h3>
         <div className="text-3xl font-bold text-blue-400">
-          {stats.totalVolume.toFixed(2)} gallons
+          {stats.totalVolume.toFixed(2)} lbs
         </div>
-      </div>
+      </div> */}
 
       {/* Recent Transactions */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">

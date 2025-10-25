@@ -1,2 +1,13 @@
 @import "tailwindcss";
 
+.cell-text {
+    white-space: normal;   /* allows wrapping */
+    word-break: break-word; /* breaks long words if needed */
+    overflow-wrap: anywhere;
+    max-width: 200px;      /* limit width so it wraps */
+    line-height: 1.4;      /* better spacing */
+  }
+
+  .text-sm {
+    white-space: normal;   /* allows wrapping */
+  }

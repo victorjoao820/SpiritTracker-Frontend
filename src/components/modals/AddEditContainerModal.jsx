@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   calculateSpiritDensity,
   calculateDerivedValuesFromWeight,
@@ -18,9 +18,11 @@ export const AddEditContainerModal = ({
 }) => {
   const isEditMode = mode === "edit";
   const isRefillMode = mode === "refill";
-  const getDefaultProductType = () =>
-    products.length > 0 ? products[0].name : "Unspecified Spirit";
-  const initialFormData = {
+  const getDefaultProductType = useCallback(
+    () => (products.length > 0 ? products[0].name : "Unspecified Spirit"),
+    [products]
+  );
+  const initialFormData = useMemo(() => ({
     name: "",
     type: "wooden_barrel",
     tareWeightLbs: "",
@@ -30,7 +32,7 @@ export const AddEditContainerModal = ({
     proof: "",
     account: "storage",
     netWeight: "",
-  };
+  }), [getDefaultProductType]);
   const [formData, setFormData] = useState(initialFormData);
   const [calculated, setCalculated] = useState({
     netWeightLbs: 0,

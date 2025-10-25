@@ -1,27 +1,29 @@
 import { useMemo } from "react";
+import { calcGallonsFromWeight} from "../utils/helpers";
+
 
 // --- Dashboard Component ---
 export const Dashboard = ({ inventory }) => {
   const stats = useMemo(() => {
     let totalProofGallons = 0;
     let totalWineGallons = 0;
+    let totalWeightLbs = 0;
     let filledCount = 0;
     const productTotals = {};
 
     inventory.forEach((c) => {
-      if (c.status === "filled" && c.currentFill) {
+      if (c.status === "FILLED" && c.netWeight) {
         filledCount++;
-        const pg = c.currentFill.proofGallons || 0;
-        const wg = c.currentFill.wineGallons || 0;
-        const product = c.currentFill.productType || "Unspecified";
-
-        totalProofGallons += pg;
-        totalWineGallons += wg;
+        const product = c.product.name || "Unspecified";
+        const {wineGallons, proofGallons} = calcGallonsFromWeight(c.proof, c.netWeight)
+        totalProofGallons += proofGallons;
+        totalWineGallons += wineGallons;
+        totalWeightLbs+= Number(c.netWeight);
 
         if (!productTotals[product]) {
           productTotals[product] = 0;
         }
-        productTotals[product] += pg;
+        productTotals[product] += proofGallons;
       }
     });
 
@@ -32,7 +34,7 @@ export const Dashboard = ({ inventory }) => {
     return {
       totalProofGallons,
       totalWineGallons,
-      filledCount,
+      totalWeightLbs,
       emptyCount: inventory.length - filledCount,
       sortedProducts,
     };
@@ -54,8 +56,8 @@ export const Dashboard = ({ inventory }) => {
           </p>
         </div>
         <div className="bg-gray-700 p-4 rounded-lg text-center">
-          <p className="text-sm text-blue-300">Filled Containers</p>
-          <p className="text-3xl font-bold">{stats.filledCount}</p>
+          <p className="text-sm text-blue-300">Total Weight Lbs</p>
+          <p className="text-3xl font-bold">{stats.totalWeightLbs}</p>
         </div>
         <div className="bg-gray-700 p-4 rounded-lg text-center">
           <p className="text-sm text-blue-300">Empty Containers</p>

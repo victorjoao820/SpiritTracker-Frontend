@@ -14,8 +14,8 @@ export const AddEditDistillationModal = ({
   const isEdit = mode === "edit";
   const [formData, setFormData] = useState({
     name: "",
-    date: new Date().toISOString().split("T")[0],
-    sourceBatchId: "",
+    date: new Date().toISOString().slice(0, 16),
+    fermentationId: "",
     chargeInputMethod: "weight",
     chargeProof: "",
     chargeTemperature: 68,
@@ -24,8 +24,8 @@ export const AddEditDistillationModal = ({
     yieldProof: "",
     yieldTemperature: 68,
     yieldWeight: "",
-    yieldContainerId: "",
-    productType: "",
+    storeYieldContainer: "",
+    productId: "",
     notes: ""
   });
   const [formError, setFormError] = useState("");
@@ -34,19 +34,21 @@ export const AddEditDistillationModal = ({
   useEffect(() => {
     if (isEdit && batch) {
       setFormData({
-        name: batch.batchNumber || "",
+        name: batch.batchName || "",
         date: batch.startDate ? new Date(batch.startDate).toISOString().split("T")[0] : "",
-        sourceBatchId: batch.sourceBatchId || "",
-        chargeInputMethod: batch.chargeInputMethod || "weight",
+        fermentationId: batch.fermentationId || "",
+        chargeInputMethod: "weight",
         chargeProof: batch.chargeProof?.toString() || "",
         chargeTemperature: batch.chargeTemperature || 68,
-        chargeWeight: batch.chargeWeight?.toString() || "",
-        yieldInputMethod: batch.yieldInputMethod || "weight",
+        chargeWeight: batch.chargeVolumeGallons?.toString() || "",
+        yieldInputMethod: "weight",
         yieldProof: batch.yieldProof?.toString() || "",
         yieldTemperature: batch.yieldTemperature || 68,
-        yieldWeight: batch.yieldWeight?.toString() || "",
-        yieldContainerId: batch.yieldContainerId || "",
-        productType: batch.product?.name || "",
+        yieldWeight: batch.yieldVolumeGallons?.toString() || "",
+
+        status: batch?.status,
+        productId: batch.productId || "Hello", 
+        storeYieldContainer: batch.storeYieldContainer || "",
         notes: batch.notes || ""
       });
     }
@@ -66,12 +68,12 @@ export const AddEditDistillationModal = ({
       return;
     }
 
-    if (!formData.sourceBatchId) {
+    if (!formData.fermentationId) {
       setFormError("Source fermentation batch is required");
       return;
     }
 
-    if (!formData.yieldContainerId) {
+    if (!formData.storeYieldContainer) {
       setFormError("Yield container is required");
       return;
     }
@@ -79,22 +81,22 @@ export const AddEditDistillationModal = ({
     try {
       // Prepare distillation data for API
       const distillationData = {
-        batchNumber: formData.name.trim(),
+        batchName: formData.name.trim(),
         startDate: formData.date || null,
-        sourceBatchId: formData.sourceBatchId,
-        chargeInputMethod: formData.chargeInputMethod,
+        fermentationId: formData.fermentationId,
+        // chargeInputMethod: formData.chargeInputMethod,
         chargeProof: formData.chargeProof ? parseFloat(formData.chargeProof) : null,
         chargeTemperature: formData.chargeTemperature ? parseFloat(formData.chargeTemperature) : null,
-        chargeWeight: formData.chargeWeight ? parseFloat(formData.chargeWeight) : null,
-        yieldInputMethod: formData.yieldInputMethod,
+        chargeVolumeGallons: formData.chargeWeight ? parseFloat(formData.chargeWeight) : null,
+        // yieldInputMethod: formData.yieldInputMethod,
         yieldProof: formData.yieldProof ? parseFloat(formData.yieldProof) : null,
         yieldTemperature: formData.yieldTemperature ? parseFloat(formData.yieldTemperature) : null,
-        yieldWeight: formData.yieldWeight ? parseFloat(formData.yieldWeight) : null,
-        yieldContainerId: formData.yieldContainerId,
-        productId: products.find(p => p.name === formData.productType)?.id || null,
+        yieldVolumeGallons: formData.yieldWeight ? parseFloat(formData.yieldWeight) : null,
+        storeYieldContainer: formData.storeYieldContainer,
+        // productId: products.find(p => p.name === formData.productId)?.id || null,
+        productId: formData.productId || null,
         notes: formData.notes.trim() || null
       };
-
       // Call the onSave function passed from parent
       await onSave(distillationData);
       onClose();
@@ -150,15 +152,15 @@ export const AddEditDistillationModal = ({
               Source Fermentation Batch
             </label>
             <select
-              name="sourceBatchId"
-              value={formData.sourceBatchId}
+              name="fermentationId"
+              value={formData.fermentationId}
               onChange={handleChange}
               className="w-full bg-gray-700 p-2 rounded"
             >
               <option value="">-- Select Source Fermentation --</option>
               {fermentationBatches.map((batch) => (
                 <option key={batch.id} value={batch.id}>
-                  {batch.batchNumber || batch.batchName} ({batch.startDate ? new Date(batch.startDate).toLocaleDateString() : 'No date'})
+                  {batch.batchName} ({batch.startDate ? new Date(batch.startDate).toLocaleDateString() : 'No date'})
                 </option>
               ))}
               <option value="storage_tank">Use Storage Tank</option>
@@ -301,8 +303,8 @@ export const AddEditDistillationModal = ({
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-300 mb-2">Store Yield In Container</label>
               <select
-                name="yieldContainerId"
-                value={formData.yieldContainerId}
+                name="storeYieldContainer"
+                value={formData.storeYieldContainer}
                 onChange={handleChange}
                 required
                 className="w-full bg-gray-700 p-2 rounded"
@@ -310,7 +312,7 @@ export const AddEditDistillationModal = ({
                 <option value="">-- Select Empty Container --</option>
                 {containers.map((container) => (
                   <option key={container.id} value={container.id}>
-                    {container.name} ({container.containerType})
+                    {container.name} ({container.type})
                   </option>
                 ))}
               </select>
@@ -322,14 +324,14 @@ export const AddEditDistillationModal = ({
               Product Type
             </label>
             <select
-              name="productType"
-              value={formData.productType}
+              name="productId"
+              value={formData.productId}
               onChange={handleChange}
               className="w-full bg-gray-700 p-2 rounded"
             >
               <option value="">Select Product</option>
               {products.map((product) => (
-                <option key={product.id} value={product.name}>
+                <option key={product.id} value={product.id}>
                   {product.name}
                 </option>
               ))}

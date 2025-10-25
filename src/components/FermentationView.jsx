@@ -173,7 +173,7 @@ const FermentationView = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-white">
-                        {batch.batchNumber || batch.batchName || 'N/A'}
+                        {batch.batchName || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-300">
@@ -193,7 +193,7 @@ const FermentationView = () => {
                       {batch.startSG ? batch.startSG : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {batch.finalGravity ? batch.finalGravity : 'N/A'}
+                      {batch.finalFG ? batch.finalFG : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

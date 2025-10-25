@@ -22,14 +22,13 @@ export const AddEditFermentationModal = ({
   // Initialize form data when editing
   useEffect(() => {
     if (isEdit && batch) {
-      // console.log("batch", batch);
       setFormData({
-        name: batch.batchNumber || "",
+        name: batch.batchName || "",
         startDate: batch.startDate ? new Date(batch.startDate).toISOString().slice(0, 16) : "",
         startVolume: batch.volumeGallons?.toString() || "",
         og: batch.startSG?.toString() || "",
-        fg: batch.finalGravity?.toString() || "",
-        ingredients: batch.ingredients || "",
+        fg: batch.finalFG?.toString() || "",
+        ingredients: batch.ingredient || "",
         notes: batch.notes || ""
       });
     }
@@ -56,8 +55,8 @@ export const AddEditFermentationModal = ({
         startDate: formData.startDate || null,
         volumeGallons: formData.startVolume ? parseFloat(formData.startVolume) : null,
         startSG: formData.og ? parseFloat(formData.og) : null,
-        finalGravity: formData.fg ? parseFloat(formData.fg) : null,
-        ingredients: formData.ingredients.trim() || null,
+        finalFG: formData.fg ? parseFloat(formData.fg) : null,
+        ingredient: formData.ingredients.trim() || null,
         notes: formData.notes.trim() || null
       };
 

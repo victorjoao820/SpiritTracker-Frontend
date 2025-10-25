@@ -38,16 +38,18 @@ const DistillationView = () => {
         containersAPI.getAll()
       ]);
 
+      
       // Filter containers to only show empty ones (status = EMPTY or netWeight = 0)
       const emptyContainers = fetchedContainers.filter(container => 
         container.status === 'EMPTY' || container.netWeight === 0 || !container.netWeight
       );
-      
+
       setBatches(fetchedBatches);
       setProducts(fetchedProducts);
       setFermentationBatches(fetchedFermentationBatches);
       setContainers(emptyContainers);
       setError('');
+
     } catch (err) {
       console.error('Error fetching distillation data:', err);
       setError('Failed to fetch distillation data.');
@@ -104,7 +106,6 @@ const DistillationView = () => {
       setError('Failed to delete distillation batch.');
     }
   };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -169,6 +170,9 @@ const DistillationView = () => {
                     Source Batch
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Yield Container
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Charge Proof
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
@@ -190,14 +194,17 @@ const DistillationView = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-white">
-                        {batch.batchNumber || 'N/A'}
+                        {batch.batchName || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {batch.sourceBatchId ? 'Fermentation Batch' : 'Storage Tank'}
+                      {batch.fermentationId ? batch.fermentation?.batchName : 'Storage Tank'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {batch.storeYieldContainer ? batch.storeYieldContainer : 'Storage Tank'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {batch.chargeProof ? batch.chargeProof : 'N/A'}
