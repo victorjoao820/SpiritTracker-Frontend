@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AddEditFermentationModal, ConfirmationModal } from './modals';
-import { fermentationAPI } from '../services/api';
+import { AddEditFermentationModal, ConfirmationModal } from '../modals';
+import { fermentationAPI } from '../../services/api';
 
 const FermentationView = () => {
   const [batches, setBatches] = useState([]);

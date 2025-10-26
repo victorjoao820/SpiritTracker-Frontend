@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { AddEditContainerModal, ConfirmationModal, ProofDownModal } from "./modals";
-import { containersAPI, productsAPI } from "../services/api";
-import { CONTAINER_CAPACITIES_GALLONS } from "../constants";
-import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../utils/helpers";
-
+import { AddEditContainerModal, ConfirmationModal, ProofDownModal, BottlingModal, TransferModal, AdjustContentsModal } from "../modals";
+import { containersAPI, productsAPI, containerOperationsAPI } from "../../services/api";
+import { CONTAINER_CAPACITIES_GALLONS } from "../../constants";
+import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../../utils/helpers";
 
 const InventoryView = () => {
   const [inventory, setInventory] = useState([]);
@@ -11,10 +10,14 @@ const InventoryView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showProofDownModal, setShowProofDownModal] = useState(false);
+  const [showBottlingModal, setShowBottlingModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [error, setError] = useState("");
   const [editingContainer, setEditingContainer] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,6 +32,20 @@ const InventoryView = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdownId(null);
+    };
+    
+    if (openDropdownId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [openDropdownId]);
 
   const fetchData = async () => {
     try {
@@ -134,6 +151,69 @@ const InventoryView = () => {
     } catch (err) {
       console.error("Error proofing down container:", err);
       setError("Failed to proof down container.");
+      throw err;
+    }
+  }
+
+  const handleBottle = (container) => {
+    setEditingContainer(container);
+    setShowBottlingModal(true);
+  }
+
+  const handleBottlingSave = async (bottlingData) => {
+    try {
+      // Call bottling API
+      await containerOperationsAPI.bottle(bottlingData);
+      await fetchData(); // Refresh inventory
+      
+      setShowBottlingModal(false);
+      setEditingContainer(null);
+      setError("");
+    } catch (err) {
+      console.error("Error bottling container:", err);
+      setError("Failed to bottle container.");
+      throw err;
+    }
+  }
+
+  const handleTransfer = (container) => {
+    setEditingContainer(container);
+    setShowTransferModal(true);
+  }
+
+  const handleTransferSave = async (transferData) => {
+    try {
+      // Call transfer API
+      await containerOperationsAPI.transfer(transferData);
+      await fetchData(); // Refresh inventory
+      
+      setShowTransferModal(false);
+      setEditingContainer(null);
+      setError("");
+    } catch (err) {
+      console.error("Error transferring container:", err);
+      setError("Failed to transfer container.");
+      throw err;
+    }
+  }
+
+  const handleTankAdjust = (container) => {
+    setEditingContainer(container);
+    setShowAdjustModal(true);
+  }
+
+  const handleAdjustSave = async (adjustData) => {
+    try {
+      // Call adjust API
+      await containerOperationsAPI.adjust(adjustData);
+      await fetchData(); // Refresh inventory
+      
+      setShowAdjustModal(false);
+      setEditingContainer(null);
+      setError("");
+    } catch (err) {
+      console.error("Error adjusting container:", err);
+      setError("Failed to adjust container.");
       throw err;
     }
   }
@@ -347,30 +427,93 @@ const InventoryView = () => {
             </div>
             
             {/* Table 3: Actions */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 overflow-visible">
               <div className="bg-gray-700 h-12">
                 <div className="w-48 px-4 flex items-center justify-center h-full text-xs font-medium text-gray-300 uppercase tracking-wider border-l border-gray-600">
                   Actions
                 </div>
               </div>
-              <div className="bg-gray-800 divide-y divide-gray-700">
+              <div className="bg-gray-800 divide-y divide-gray-700 overflow-visible">
                 {currentContainers.map((container, index) => {
+                  const isDropdownOpen = openDropdownId === container.id;
+                  // Determine if we're in the last 3 rows to position dropdown above
+                  const isNearBottom = index >= currentContainers.length - 3;
+                  
                   return (
-                    <div key={container.id} className="hover:bg-gray-750 transition-colors h-16">
+                    <div key={container.id} className="hover:bg-gray-750 transition-colors h-16 relative">
                       <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l border-gray-600 h-full">
                         <div className="flex justify-center space-x-2">
                           <button
                             onClick={() => handleEditContainer(container)}
-                            className="text-blue-400 hover:text-blue-300 font-medium"
+                            className="text-red-400 hover:text-red-300 font-medium"
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={() => handleProofDown(container)}
-                            className="text-cyan-400 hover:text-cyan-300 font-medium"
-                          >
-                            Proof Down
-                          </button>
+                          
+                          {/* Dropdown Menu */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(isDropdownOpen ? null : container.id);
+                              }}
+                              className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
+                            >
+                              Actions
+                              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            
+                            {isDropdownOpen && (
+                              <div 
+                                onClick={(e) => e.stopPropagation()}
+                                className={`absolute right-0 w-35 bg-gray-700 rounded-md shadow-lg z-[9999] border border-gray-600 ${
+                                  isNearBottom ? 'bottom-full mb-2' : 'top-full mt-2'
+                                }`}
+                              >
+                                <div className="py-1">
+                                  <div
+                                    onClick={() => {
+                                      handleBottle(container);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="cursor-pointer px-4 py-2 text-sm text-green-400 hover:bg-gray-600 hover:text-green-300 transition-colors"
+                                  >
+                                    Bottle
+                                  </div>
+                                  <div
+                                    onClick={() => {
+                                      handleTransfer(container);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="cursor-pointer px-4 py-2 text-sm text-purple-400 hover:bg-gray-600 hover:text-purple-300 transition-colors"
+                                  >
+                                    Transfer
+                                  </div>
+                                  <div
+                                    onClick={() => {
+                                      handleTankAdjust(container);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="cursor-pointer px-4 py-2 text-sm text-orange-400 hover:bg-gray-600 hover:text-orange-300 transition-colors"
+                                  >
+                                    Tank Adjust
+                                  </div>
+                                  <div
+                                    onClick={() => {
+                                      handleProofDown(container);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="cursor-pointer px-4 py-2 text-sm text-cyan-400 hover:bg-gray-600 hover:text-cyan-300 transition-colors"
+                                  >
+                                    Proof Down
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
                           <button
                             onClick={() => {
                               setItemToDelete(container);
@@ -536,6 +679,45 @@ const InventoryView = () => {
           }}
           container={editingContainer}
           onSave={handleProofDownSave}
+        />
+      )}
+
+      {showBottlingModal && (
+        <BottlingModal
+          isOpen={showBottlingModal}
+          onClose={() => {
+            setShowBottlingModal(false);
+            setEditingContainer(null);
+          }}
+          container={editingContainer}
+          onSave={handleBottlingSave}
+        />
+      )}
+
+      {showTransferModal && (
+        <TransferModal
+          isOpen={showTransferModal}
+          onClose={() => {
+            setShowTransferModal(false);
+            setEditingContainer(null);
+          }}
+          sourceContainer={editingContainer}
+          allContainers={inventory}
+          products={products}
+          onSave={handleTransferSave}
+        />
+      )}
+
+      {showAdjustModal && (
+        <AdjustContentsModal
+          isOpen={showAdjustModal}
+          onClose={() => {
+            setShowAdjustModal(false);
+            setEditingContainer(null);
+          }}
+          container={editingContainer}
+          products={products}
+          onSave={handleAdjustSave}
         />
       )}
     </div>

@@ -350,6 +350,24 @@ export const calcGallonsFromWeight = (proof, netWeightLbs, temperature = 60) =>
   };
 };
 
+export const calcWeightFromWineGallons = (proof, wineGallons, temperature = 60) =>
+{
+  const spiritDensity = calculateSpiritDensity(proof, temperature);
+  const netWeightLbs = wineGallons * spiritDensity;
+
+  return parseFloat(netWeightLbs.toFixed(3));
+};
+
+export const calcWeightFromProofGallons = (proof, proofGallons, temperature = 60) =>
+{
+  const spiritDensity = calculateSpiritDensity(proof, temperature);
+  const wineGallons = proofGallons / (proof / 100);
+  const netWeightLbs = wineGallons * spiritDensity;
+
+  return parseFloat(netWeightLbs.toFixed(3));
+};
+
+
 export const logTransaction = async (logData) => {
   // This function will be handled by the API service layer
   // The actual logging is done in the App component using transactionsAPI

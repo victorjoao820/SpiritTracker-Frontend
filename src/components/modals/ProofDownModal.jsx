@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { logTransaction } from "../../utils/helpers";
+import { logTransaction, calcGallonsFromWeight, calculateSpiritDensity } from "../../utils/helpers";
 import { TRANSACTION_TYPES } from "../../constants";
 
 // --- ProofDownModal ---
@@ -25,22 +25,23 @@ export const ProofDownModal = ({
       const currentProof = parseFloat(container.proof) || 0;
       const netWeight = parseFloat(container.netWeight) || 0;
       const tareWeight = parseFloat(container.tareWeight) || 0;
-      
+   
+
+
       if (targetProofNum > 0 && targetProofNum < currentProof) {
-        // Calculate wine gallons from current net weight (assuming 8.3 lbs per gallon)
-        const currentWineGallons = netWeight / 8.3;
         
-        // Calculate proof gallons (unchanged)
-        const proofGallons = currentWineGallons * (currentProof / 100);
-        
-        // Calculate final wine gallons after proof down
+        const { wineGallons, proofGallons } = calcGallonsFromWeight(
+          currentProof,
+          netWeight,
+          container.temperatureFahrenheit || 60
+        );
         const finalWineGallons = proofGallons / (targetProofNum / 100);
         
         // Calculate water to add
-        const addWater = finalWineGallons - currentWineGallons;
+        const addWater = finalWineGallons - wineGallons;
         
         // Calculate final net weight (wine gallons * 8.3)
-        const finalNetWeight = finalWineGallons * 8.3;
+        const finalNetWeight = finalWineGallons * calculateSpiritDensity(targetProofNum, container.temperatureFahrenheit || 60);
         
         // Calculate final gross weight (tare + final net)
         const finalGrossWeight = tareWeight + finalNetWeight;

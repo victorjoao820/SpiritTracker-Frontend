@@ -6,13 +6,13 @@ import AuthScreen from "./AuthScreen";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
-import DashboardView from "./components/DashboardView";
-import InventoryView from "./components/InventoryView";
-import ProductsView from "./components/ProductsView";
-import FermentationView from "./components/FermentationView";
+import DashboardView from "./components/views/DashboardView";
+import InventoryView from "./components/views/InventoryView";
+import ProductsView from "./components/views/ProductsView";
+import FermentationView from "./components/views/FermentationView";
 
 import AuthRedirect from "./routes/AuthRedirect";
-import DistillationView from "./components/DistillationView";
+import DistillationView from "./components/views/DistillationView";
 
 // Placeholder components for routes that aren't implemented yet
 const TransfersView = () => (

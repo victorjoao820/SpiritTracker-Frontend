@@ -49,7 +49,7 @@ export const TtbReportModal = ({ transactionLog, onClose }) => {
           summary.processing.transferredFromStorage += pg;
           summary.storage.transferredIn += pg;
           break;
-        case TRANSACTION_TYPES.BOTTLE_PARTIAL:
+        case TRANSACTION_TYPES.BOTTLE_KEEP:
         case TRANSACTION_TYPES.BOTTLE_EMPTY:
           summary.processing.bottlingDump += Math.abs(pg);
           break;
@@ -59,7 +59,11 @@ export const TtbReportModal = ({ transactionLog, onClose }) => {
         case TRANSACTION_TYPES.BOTTLING_LOSS:
           summary.processing.bottlingLoss += Math.abs(pg);
           break;
-        case TRANSACTION_TYPES.SAMPLE_ADJUST:
+        case TRANSACTION_TYPES.ADJUST_CONTAINER_ADD:
+          summary.processing.operationalLoss -= Math.abs(pg);
+          summary.storage.storageLosses -= Math.abs(pg);
+          break;
+        case TRANSACTION_TYPES.ADJUST_CONTAINER_REMOVE:
           summary.processing.operationalLoss += Math.abs(pg);
           summary.storage.storageLosses += Math.abs(pg);
           break;

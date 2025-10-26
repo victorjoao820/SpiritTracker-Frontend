@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { usersAPI, containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../services/api';
-import { Dashboard } from './Dashboard';
+import { usersAPI, containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../../services/api';
+import { Dashboard } from '../parts/dashboard/Dashboard';
 
 const DashboardView = () => {
   const [stats, setStats] = useState({
