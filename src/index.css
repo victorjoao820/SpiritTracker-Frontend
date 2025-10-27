@@ -1,5 +1,43 @@
 @import "tailwindcss";
 
+html {
+  /* Light theme (default) */
+  --bg-primary: hsl(210, 20%, 98%);
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-card: hsl(0, 0%, 99%);
+  --bg-card-hover: hsl(0, 0%, 95%);
+  --bg-card: hsl(0, 0%, 99%);
+
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-tertiary: #6b7280;
+  --border-color: #e5e7eb;
+  --hover-bg: #f3f4f6;
+}
+
+html.dark {
+  /* Dark theme */
+  --bg-primary: #000000;
+  --bg-secondary: hsl(0, 0%, 9%);
+  --bg-tertiary: hsl(0, 0%, 7%);
+  --bg-card: hsl(0, 0%, 9%);
+  --bg-card-hover: hsl(0, 0%, 14%);
+
+  --bg-table: hsl(0, 0%, 9%);
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border-color: #374151;
+  --hover-bg: #1f2937;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 .text-sm {
   white-space: normal;   /* allows wrapping */
 }

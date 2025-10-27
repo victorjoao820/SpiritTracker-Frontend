@@ -52,7 +52,7 @@ const DashboardView = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400">Loading dashboard...</div>
+        <div className="text-gray-400 dark:text-gray-500">Loading dashboard...</div>
       </div>
     );
   }
@@ -65,60 +65,54 @@ const DashboardView = () => {
           title="Total Containers"
           value={stats.totalContainers}
           icon="📦"
-          color="bg-blue-600"
+          color="bg-orange-500"
         />
         <StatCard
           title="Filled Containers"
           value={stats.filledContainers}
           icon="✅"
-          color="bg-green-600"
+          color="bg-blue-500"
         />
         <StatCard
           title="Empty Containers"
           value={stats.emptyContainers}
           icon="⬜"
-          color="bg-gray-600"
+          color="bg-cyan-600 "
         />
         <StatCard
           title="Production Batches"
           value={stats.totalProduction}
           icon="🏭"
-          color="bg-purple-600"
+          color=" bg-emerald-600"
         />
       </div>
 
       <Dashboard inventory={stats.containers}
 
       />
-      {/* Volume Stats */}
-      {/* <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h3 className="text-lg font-semibold mb-4 text-white">Total Volume</h3>
-        <div className="text-3xl font-bold text-blue-400">
-          {stats.totalVolume.toFixed(2)} lbs
-        </div>
-      </div> */}
 
       {/* Recent Transactions */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h3 className="text-lg font-semibold mb-4 text-white">Recent Activity</h3>
+      <div className="rounded-lg p-6 border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+        <h3 className="text-lg font-semibold mb-4 transition-colors" style={{ color: 'var(--text-primary)' }}>Recent Activity</h3>
         {stats.recentTransactions.length === 0 ? (
-          <p className="text-gray-400">No recent transactions</p>
+          <p className="transition-colors" style={{ color: 'var(--text-tertiary)' }}>No recent transactions</p>
         ) : (
           <div className="space-y-3">
             {stats.recentTransactions.slice(0, 5).map((transaction) => (
               <div
                 key={transaction.id}
-                className="flex justify-between items-center p-3 bg-gray-700 rounded-lg"
+                className="flex justify-between items-center p-3 rounded-lg transition-colors"
+                style={{ backgroundColor: 'var(--bg-card-hover)' }}
               >
                 <div>
-                  <p className="font-medium text-white">{transaction.transactionType}</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>{transaction.transactionType}</p>
+                  <p className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     {new Date(transaction.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="text-right">
                   {transaction.volumeGallons && (
-                    <p className="font-medium text-blue-400">
+                    <p className="font-medium transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {Number(transaction.volumeGallons).toFixed(2)} gal
                     </p>
                   )}
@@ -134,16 +128,12 @@ const DashboardView = () => {
 
 const StatCard = ({ title, value, icon, color }) => {
   return (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-400 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-white">{value}</p>
-        </div>
-        <div className={`${color} w-12 h-12 rounded-lg flex items-center justify-center text-2xl`}>
-          {icon}
-        </div>
+    <div className={`${color} p-6 rounded-lg flex flex-col items-center justify-center space-y-3 text-white text-center transition-transform hover:scale-105`}>
+      <div className="text-4xl">
+        {icon}
       </div>
+      <span className="text-base">{title}</span>
+      <span className="text-2xl font-semibold">{value}</span>
     </div>
   );
 };

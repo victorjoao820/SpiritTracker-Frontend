@@ -60,10 +60,16 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+    <aside 
+      className="fixed left-0 top-0 h-screen w-64 border-r flex flex-col transition-colors"
+      style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+    >
       {/* Logo/Brand */}
-      <div className="h-16 flex items-center justify-center border-b border-gray-700">
-        <h1 className="text-xl font-bold text-white">Spirit Tracker</h1>
+      <div 
+        className="h-16 flex items-center justify-center border-b transition-colors"
+        style={{ borderColor: 'var(--border-color)' }}
+      >
+        <h1 className="text-xl font-bold transition-colors" style={{ color: 'var(--text-secondary)' }}>Spirit Tracker</h1>
       </div>
 
       {/* Navigation Menu */}
@@ -85,8 +91,9 @@ const Sidebar = () => {
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                         isSubmenuActive
                           ? 'bg-blue-600 text-white'
-                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          : 'hover:bg-opacity-20'
                       }`}
+                      style={!isSubmenuActive ? { color: 'var(--text-secondary)' } : {}}
                     >
                       <div className="flex items-center space-x-3">
                         <Icon className="w-5 h-5" />
@@ -144,8 +151,11 @@ const Sidebar = () => {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-700">
-        <p className="text-xs text-gray-400 text-center">
+      <div 
+        className="p-4 border-t transition-colors"
+        style={{ borderColor: 'var(--border-color)' }}
+      >
+        <p className="text-xs text-center transition-colors" style={{ color: 'var(--text-tertiary)' }}>
           Spirit Tracker v1.0
         </p>
       </div>

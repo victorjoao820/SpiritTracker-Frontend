@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AddEditFermentationModal, ConfirmationModal } from '../modals';
 import { fermentationAPI } from '../../services/api';
 import { ActionButtons } from "../parts/shared/ActionButtons";
+import Pagination from "../parts/shared/Pagination";
 
 const FermentationView = () => {
   const [batches, setBatches] = useState([]);
@@ -14,13 +15,18 @@ const FermentationView = () => {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Calculate pagination
   const totalPages = Math.ceil(batches.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentBatches = batches.slice(startIndex, endIndex);
+  
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
 
   useEffect(() => {
     fetchData();
@@ -134,66 +140,66 @@ const FermentationView = () => {
           </button>
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-700">
+              <thead className="transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                 <tr>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     #
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Batch Name
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Start Date
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Volume (gal)
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     OG
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     FG
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Status
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
+              <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                 {currentBatches.map((batch, index) => (
-                  <tr key={batch.id} className="hover:bg-gray-750 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 text-center">
+                  <tr key={batch.id} className="transition-colors hover:opacity-80" style={{ borderColor: 'var(--border-color)' }}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {startIndex + index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-white text-center">
+                      <div className="text-sm font-medium text-center transition-colors" style={{ color: 'var(--text-primary)' }}>
                         {batch.batchName || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-300 text-center">
+                    <td className="px-6 py-4 text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {batch.startDate ? (
                         <div className="space-y-1">
                           <div>{new Date(batch.startDate).toLocaleDateString()}</div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs transition-colors" style={{ color: 'var(--text-tertiary)' }}>
                             {new Date(batch.startDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </div>
                         </div>
                       ) : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 text-center">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {batch.volumeGallons ? `${batch.volumeGallons}` : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 text-center">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {batch.startSG ? batch.startSG : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 text-center">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {batch.finalFG ? batch.finalFG : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -210,15 +216,15 @@ const FermentationView = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                       {/* Edit and Delete Buttons */}
                       <div className="flex justify-center">
-                        <ActionButtons
-                          onEdit={() => {
-                            setEditingBatch(batch);
-                            setShowModal(true);}}
-                          onDelete={() => {
-                            setItemToDelete(batch);
-                            setShowConfirmModal(true);
-                          }}
-                        />
+                      <ActionButtons
+                        onEdit={() => {
+                          setEditingBatch(batch);
+                          setShowModal(true);}}
+                        onDelete={() => {
+                          setItemToDelete(batch);
+                          setShowConfirmModal(true);
+                        }}
+                      />
                       </div>
                     </td>
                   </tr>
@@ -228,88 +234,16 @@ const FermentationView = () => {
           </div>
           
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bg-gray-700 px-6 py-3 flex items-center justify-between border-t border-gray-600">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">
-                    Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, batches.length)}</span> of{' '}
-                    <span className="font-medium">{batches.length}</span> results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    
-                    {/* Page numbers */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                      // Show only a few page numbers around current page
-                      if (
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 1 && page <= currentPage + 1)
-                      ) {
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              page === currentPage
-                                ? 'z-10 bg-blue-600 border-blue-600 text-white'
-                                : 'bg-gray-800 border-gray-300 text-gray-300 hover:bg-gray-700'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      } else if (
-                        page === currentPage - 2 ||
-                        page === currentPage + 2
-                      ) {
-                        return (
-                          <span key={page} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-800 text-sm font-medium text-gray-500">
-                            ...
-                          </span>
-                        );
-                      }
-                      return null;
-                    })}
-                    
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          )}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={batches.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         </div>
       )}
 

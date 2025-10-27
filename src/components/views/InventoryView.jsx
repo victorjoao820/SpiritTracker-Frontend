@@ -5,6 +5,7 @@ import { CONTAINER_CAPACITIES_GALLONS } from "../../constants";
 import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../../utils/helpers";
 import { Menu , Milk, ArrowLeftRight, BarrelIcon, BadgePercent } from "lucide-react";
 import { ActionButtons } from "../parts/shared/ActionButtons";
+import Pagination from "../parts/shared/Pagination";
 
 
 const InventoryView = () => {
@@ -461,40 +462,41 @@ const InventoryView = () => {
           </button>
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
           {/* Three Separate Tables That Look Like One */}
           <div className="flex">
             
             {/* Table 1: ID, Name, Account */}
             <div className="flex-shrink-0">
-              <div className="bg-gray-700 h-12">
+              <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                 <div className="flex h-full">
-                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
+                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                     ID
                   </div>
-                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                     Name
                   </div>
-                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider border-r border-gray-600">
+                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                     Account
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-800 divide-y divide-gray-700">
+              <div className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                 {currentContainers.map((container, index) => {
                   return (
                     <div 
                       key={container.id} 
-                      className={`flex hover:bg-gray-750 transition-all h-16 ${
+                      className={`flex transition-all h-16 ${
                         isChanged(container.id) ? 'bg-yellow-900/30 animate-pulse' : ''
                       }`}
+                      style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300 border-r border-gray-600">
+                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                         {startIndex + index + 1}
                       </div>
-                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap border-r border-gray-600">
+                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap border-r transition-colors" style={{ borderColor: 'var(--border-light)' }}>
                         <div className="text-center">
-                          <div className="text-sm font-medium text-white">
+                          <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
                             {getChangedValueDisplay(
                               container.id,
                               'name',
@@ -502,7 +504,7 @@ const InventoryView = () => {
                               (v) => v || 'Unnamed'
                             )}
                           </div>
-                          <div className="text-xs text-gray-400 capitalize">
+                          <div className="text-xs capitalize transition-colors" style={{ color: 'var(--text-tertiary)' }}>
                             {getChangedValueDisplay(
                               container.id,
                               'type',
@@ -512,8 +514,8 @@ const InventoryView = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm text-pink-300 border-r border-gray-600">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium `}>
+                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm border-r transition-colors" style={{ borderColor: 'var(--border-light)' }}>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors" style={{ color: 'var(--text-secondary)' }}>
                           {getChangedValueDisplay(
                             container.id,
                             'account',
@@ -530,38 +532,38 @@ const InventoryView = () => {
             
             {/* Table 2: Status, Product, Fill Date, Proof, Tare Weight, Gross Weight, Net Weight, Wine Gallons, Proof Gallons */}
             <div className="flex-1 overflow-x-auto">
-              <div className="bg-gray-700 h-12">
+              <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                 <div className="flex min-w-max h-full">
-                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Status
                   </div>
-                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Product
                   </div>
-                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Fill Date
                   </div>
-                  <div className="w-20 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-20 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Proof
                   </div>
-                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Tare Weight
                   </div>
-                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Gross Weight
                   </div>
-                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Net Weight
                   </div>
-                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Wine Gallons
                   </div>
-                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <div className="w-28 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Proof Gallons
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-800 divide-y divide-gray-700">
+              <div className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                 {currentContainers.map((container, index) => {
                   const calculated = calculateContainerData(container);
                   const product = products.find(p => p.id === container.productId);
@@ -569,13 +571,14 @@ const InventoryView = () => {
                   return (
                     <div 
                       key={container.id} 
-                      className={`flex hover:bg-gray-750 transition-all h-16 ${
+                      className={`flex transition-all h-16 ${
                         isChanged(container.id) ? 'bg-yellow-900/30' : ''
                       }`}
+                      style={{ borderColor: 'var(--border-color)' }}
                     >
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
                         <div className="flex flex-col items-center justify-center space-y-1">
-                          <div className="w-8 bg-gray-200 h-2">
+                          <div className="w-8 h-2 transition-colors" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                             <div 
                               className={`h-2 ${
                                 container.status === 'FILLED' ? 'bg-yellow-500' : 'bg-gray-400'
@@ -583,13 +586,13 @@ const InventoryView = () => {
                               style={{ width: `${calculated.percentageFull}%` }}
                             ></div>
                           </div>
-                          <span className="text-sm text-gray-300">
+                          <span className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                             {container.status === 'FILLED' ? `${calculated.percentageFull.toFixed(0)}%` : 'Empty'}
                           </span>
                         </div>
                       </div>
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
-                        <div className="text-sm text-gray-300 text-center">
+                        <div className="text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
                           {getChangedValueDisplay(
                             container.id,
                             'productName',
@@ -598,7 +601,7 @@ const InventoryView = () => {
                           )}
                         </div>
                       </div>
-                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
+                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                         {getChangedValueDisplay(
                           container.id,
                           'fillDate',
@@ -606,7 +609,7 @@ const InventoryView = () => {
                           (v) => v ? new Date(v).toLocaleDateString() : 'N/A'
                         )}
                       </div>
-                      <div className="w-20 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
+                      <div className="w-20 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                         {getChangedValueDisplay(
                           container.id,
                           'proof',
@@ -614,10 +617,10 @@ const InventoryView = () => {
                           (v) => v ? `${v}°` : 'N/A'
                         )}
                       </div>
-                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                         {calculated.tareWeight.toFixed(1)} lbs
                       </div>
-                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                         {getChangedValueDisplay(
                           container.id,
                           'grossWeight',
@@ -625,7 +628,7 @@ const InventoryView = () => {
                           (v) => v.toFixed(1) + ' lbs'
                         )}
                       </div>
-                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                         {getChangedValueDisplay(
                           container.id,
                           'netWeight',
@@ -633,7 +636,7 @@ const InventoryView = () => {
                           (v) => (v ? Number(v).toFixed(1) : '0.0') + ' lbs'
                         )}
                       </div>
-                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                         {getChangedValueDisplay(
                           container.id,
                           'wineGallons',
@@ -641,7 +644,7 @@ const InventoryView = () => {
                           (v) => v.toFixed(2) + ' gal'
                         )}
                       </div>
-                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium text-blue-400">
+                      <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
                         {getChangedValueDisplay(
                           container.id,
                           'proofGallons',
@@ -657,12 +660,12 @@ const InventoryView = () => {
             
             {/* Table 3: Actions */}
             <div className="flex-shrink-0 overflow-visible">
-              <div className="bg-gray-700 h-12">
-                <div className="w-48 px-4 flex items-center justify-center h-full text-xs font-medium text-gray-300 uppercase tracking-wider border-l border-gray-600">
+              <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                <div className="w-48 px-4 flex items-center justify-center h-full text-xs font-medium uppercase tracking-wider border-l transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                   Actions
                 </div>
               </div>
-              <div className="bg-gray-800 divide-y divide-gray-700 overflow-visible">
+              <div className="divide-y overflow-visible transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                 {currentContainers.map((container, index) => {
                   const isDropdownOpen = openDropdownId === container.id;
                   // Determine if we're in the last 3 rows to position dropdown above
@@ -671,11 +674,12 @@ const InventoryView = () => {
                   return (
                     <div 
                       key={container.id} 
-                      className={`hover:bg-gray-750 transition-all h-16 relative ${
+                      className={`transition-all h-16 relative ${
                         isChanged(container.id) ? 'bg-yellow-900/30' : ''
                       }`}
+                      style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l border-gray-600 h-full">
+                      <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l h-full transition-colors" style={{ borderColor: 'var(--border-light)' }}>
                         <div className="flex justify-center items-center space-x-2">
                           {/* Edit and Delete Buttons */}
                           <ActionButtons
@@ -779,106 +783,16 @@ const InventoryView = () => {
           </div>
           
           {/* Pagination */}
-          <div className="bg-gray-700 px-6 py-3 flex items-center justify-between border-t border-gray-600">
-            {/* Items per page selector */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-400">Show:</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="bg-gray-800 border border-gray-600 text-gray-300 text-sm rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-              <span className="text-sm text-gray-400">per page</span>
-            </div>
-
-            {/* Pagination controls */}
-            {totalPages > 1 && sortedInventory.length > itemsPerPage && (
-              <>
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">
-                      Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                      <span className="font-medium">{Math.min(endIndex, sortedInventory.length)}</span> of{' '}
-                      <span className="font-medium">{sortedInventory.length}</span> results
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      
-                      {/* Page numbers */}
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                        // Show only a few page numbers around current page
-                        if (
-                          page === 1 ||
-                          page === totalPages ||
-                          (page >= currentPage - 1 && page <= currentPage + 1)
-                        ) {
-                          return (
-                            <button
-                              key={page}
-                              onClick={() => setCurrentPage(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                page === currentPage
-                                  ? 'z-10 bg-blue-600 border-blue-600 text-white'
-                                  : 'bg-gray-800 border-gray-300 text-gray-300 hover:bg-gray-700'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          );
-                        } else if (
-                          page === currentPage - 2 ||
-                          page === currentPage + 2
-                        ) {
-                          return (
-                            <span key={page} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-800 text-sm font-medium text-gray-500">
-                              ...
-                            </span>
-                          );
-                        }
-                        return null;
-                      })}
-                      
-                      <button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={sortedInventory.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         </div>
       )}
 

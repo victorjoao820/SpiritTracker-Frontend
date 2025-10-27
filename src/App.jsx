@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./hooks/useAuth";
 import AuthScreen from "./AuthScreen";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -13,13 +14,6 @@ import FermentationView from "./components/views/FermentationView";
 
 import AuthRedirect from "./routes/AuthRedirect";
 import DistillationView from "./components/views/DistillationView";
-
-// Placeholder components for routes that aren't implemented yet
-const TransfersView = () => (
-  <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-    <p className="text-gray-400">Transfers view coming soon...</p>
-  </div>
-);
 
 const TransactionsView = () => (
   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
@@ -44,12 +38,12 @@ function AuthenticatedLayout({ children }) {
   const { user, logout } = useAuth();
   
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex">
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 bg-gray-900">
+      <div className="flex-1 ml-64" style={{ backgroundColor: 'var(--bg-primary)' }}>
         {/* Header */}
         <Header user={user} onLogout={logout} />
 
@@ -137,11 +131,13 @@ function AppContent() {
 // Main App Component with Auth Provider and Router
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Router>
+    </ThemeProvider>
   );
 }
 

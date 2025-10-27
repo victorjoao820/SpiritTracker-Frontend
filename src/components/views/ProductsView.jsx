@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AddEditProductModal, ConfirmationModal } from "../modals";
 import { productsAPI } from "../../services/api";
 import { ActionButtons } from "../parts/shared/ActionButtons";
+import Pagination from "../parts/shared/Pagination";
 
 
 const ProductsView = () => {
@@ -15,13 +16,18 @@ const ProductsView = () => {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Calculate pagination
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = products.slice(startIndex, endIndex);
+  
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
 
   useEffect(() => {
     fetchProducts();
@@ -124,10 +130,10 @@ const ProductsView = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold transition-colors" style={{ color: 'var(--text-primary)' }}>
             Spirit Products
           </h3>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
             Manage your distillery products and spirits
           </p>
         </div>
@@ -148,8 +154,8 @@ const ProductsView = () => {
           <div className="text-gray-400">Loading products...</div>
         </div>
       ) : products.length === 0 ? (
-        <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-          <p className="text-gray-400 mb-4">No products found</p>
+        <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+          <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No products found</p>
           <button
             onClick={() => setShowAddProductModal(true)}
             className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
@@ -158,39 +164,39 @@ const ProductsView = () => {
           </button>
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-700">
+              <thead className="transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Description
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
+              <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                 {currentProducts.map((product, index) => (
-                  <tr key={product.id} className="hover:bg-gray-750 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <tr key={product.id} className="transition-colors hover:opacity-80" style={{ borderColor: 'var(--border-color)' }}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {startIndex + index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-white">
+                      <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
                         {product.name}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-400 max-w-xs truncate">
+                      <div className="text-sm max-w-xs truncate transition-colors" style={{ color: 'var(--text-tertiary)' }}>
                         {product.description || 'No description'}
                       </div>
                     </td>
@@ -212,88 +218,16 @@ const ProductsView = () => {
           </div>
           
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bg-gray-700 px-6 py-3 flex items-center justify-between border-t border-gray-600">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">
-                    Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, products.length)}</span> of{' '}
-                    <span className="font-medium">{products.length}</span> results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    
-                    {/* Page numbers */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                      // Show only a few page numbers around current page
-                      if (
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 1 && page <= currentPage + 1)
-                      ) {
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              page === currentPage
-                                ? 'z-10 bg-blue-600 border-blue-600 text-white'
-                                : 'bg-gray-800 border-gray-300 text-gray-300 hover:bg-gray-700'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      } else if (
-                        page === currentPage - 2 ||
-                        page === currentPage + 2
-                      ) {
-                        return (
-                          <span key={page} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-800 text-sm font-medium text-gray-500">
-                            ...
-                          </span>
-                        );
-                      }
-                      return null;
-                    })}
-                    
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          )}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={products.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         </div>
       )}
 
