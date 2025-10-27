@@ -134,7 +134,7 @@ const ProductsView = () => {
             Spirit Products
           </h3>
           <p className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-            Manage your distillery products and spirits
+            Add or change new products.
           </p>
         </div>
         <button

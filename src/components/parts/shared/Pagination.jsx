@@ -19,7 +19,7 @@ const Pagination = ({
           <select
             value={itemsPerPage}
             onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="border text-sm rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+            className="border text-sm rounded-md px-3 py-1 focus:outline-none focus:ring-1 focus:ring-black-400 focus:border-transparent transition-colors"
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-light)', color: 'var(--text-primary)' }}
           >
             <option value={10}>10</option>
@@ -95,13 +95,13 @@ const Pagination = ({
                         onClick={() => onPageChange(page)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors ${
                           page === currentPage
-                            ? 'z-10 border-blue-600 text-white'
+                            ? 'z-10 bg-accent text-white'
                             : 'border-light'
                         }`}
                         style={page === currentPage
                           ? { 
-                              backgroundColor: '#2563eb', 
-                              borderColor: '#2563eb'
+                              backgroundColor: 'hsl(var(--accent))', 
+                              borderColor: 'hsl(var(--accent))'
                             }
                           : { 
                               borderColor: 'var(--border-light)', 

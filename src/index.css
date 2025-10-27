@@ -9,9 +9,11 @@ html {
   --bg-card-hover: hsl(0, 0%, 95%);
   --bg-card: hsl(0, 0%, 99%);
 
-  --text-primary: #1f2937;
-  --text-secondary: #4b5563;
-  --text-tertiary: #6b7280;
+  --bg-accent: hsl(202, 100%, 82%);     
+
+  --text-primary: #000000;
+  --text-secondary: #05070a;
+  --text-tertiary: #111216;
   --border-color: #e5e7eb;
   --hover-bg: #f3f4f6;
 }
@@ -23,6 +25,8 @@ html.dark {
   --bg-tertiary: hsl(0, 0%, 7%);
   --bg-card: hsl(0, 0%, 9%);
   --bg-card-hover: hsl(0, 0%, 14%);
+  
+  --bg-accent: hsl(12, 6.5%, 15.1%);
 
   --bg-table: hsl(0, 0%, 9%);
   --text-primary: #ffffff;
@@ -40,4 +44,4 @@ body {
 
 .text-sm {
   white-space: normal;   /* allows wrapping */
-}
+} 

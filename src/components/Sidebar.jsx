@@ -45,10 +45,14 @@ const Sidebar = () => {
   ];
 
   const toggleMenu = (menuId) => {
-    setExpandedMenus(prev => ({
-      ...prev,
-      [menuId]: !prev[menuId]
-    }));
+    setExpandedMenus(prev => {
+      // If clicking the same menu, toggle it
+      if (prev[menuId]) {
+        return { ...prev, [menuId]: false };
+      }
+      // Otherwise, close all other menus and open this one
+      return { [menuId]: true };
+    });
   };
 
   const isMenuExpanded = (menuId) => {
@@ -81,6 +85,15 @@ const Sidebar = () => {
             const isSubmenuActive = hasSubmenu && item.submenu.some(subItem => location.pathname === subItem.path);
             const isExpanded = isMenuExpanded(item.id);
             
+            // For items with submenus, check if we're on any page that starts with their base path
+            const isParentActive = hasSubmenu && (
+              (item.id === 'inventory' && location.pathname.startsWith('/inventory')) ||
+              (item.id === 'production' && location.pathname.startsWith('/production'))
+            );
+            
+            // Highlight when on parent's pages OR when the parent menu is expanded
+            const shouldHighlightParent = isParentActive || (hasSubmenu && isExpanded);
+            
             return (
               <li key={item.id}>
                 {hasSubmenu ? (
@@ -88,12 +101,14 @@ const Sidebar = () => {
                     {/* Main menu item with submenu */}
                     <button
                       onClick={() => toggleMenu(item.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                        isSubmenuActive
-                          ? 'bg-blue-600 text-white'
-                          : 'hover:bg-opacity-20'
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
+                        shouldHighlightParent ? 'bg-accent shadow-md' : ''
                       }`}
-                      style={!isSubmenuActive ? { color: 'var(--text-secondary)' } : {}}
+                      style={{
+                        color: shouldHighlightParent ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                        backgroundColor: shouldHighlightParent ? 'var(--bg-accent)' : '',
+                        borderColor: shouldHighlightParent ? 'var(--border-color)' : '',
+                      }}
                     >
                       <div className="flex items-center space-x-3">
                         <Icon className="w-5 h-5" />
@@ -114,12 +129,15 @@ const Sidebar = () => {
                             <NavLink
                               to={subItem.path}
                               className={({ isActive }) =>
-                                `w-full flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
-                                  isActive
-                                    ? 'bg-blue-500 text-white'
-                                    : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                                `w-full flex items-center px-4 py-2 rounded-lg transition-all text-sm ${
+                                  isActive ? 'bg-accent shadow-sm' : ''
                                 }`
                               }
+                              style={({ isActive }) => ({
+                                backgroundColor: isActive ? 'var(--bg-accent)' : '',
+                                color: isActive ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                                borderColor: isActive ? 'var(--border-color)' : '',
+                              })}
                             >
                               <span>{subItem.label}</span>
                             </NavLink>
@@ -132,13 +150,17 @@ const Sidebar = () => {
                   /* Regular menu item without submenu */
                   <NavLink
                     to={item.path}
+                    onClick={() => setExpandedMenus({})}
                     className={({ isActive }) =>
-                      `w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      `w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                        isActive ? 'bg-accent shadow-md' : ''
                       }`
                     }
+                    style={({ isActive }) => ({
+                      backgroundColor: isActive ? 'var(--bg-accent)' : '',
+                      color: isActive ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                      borderColor: isActive ? 'var(--border-color)' : '',
+                    })}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-medium">{item.label}</span>

@@ -8,10 +8,8 @@ const Header = ({ user, onLogout }) => {
   const getViewTitle = () => {
     const titles = {
       '/dashboard': 'Dashboard',
-      '/inventory/containers': 'Inventory - Containers',
-      '/inventory/products': 'Inventory - Products',
-      '/production': 'Production Batches',
-      '/transfers': 'Spirit Transfers',
+      '/inventory/containers': 'Product Management',
+      '/inventory/products': 'Product Type',
       '/transactions': 'Transaction History',
       '/reports': 'Reports & Analytics',
       '/settings': 'Settings',
