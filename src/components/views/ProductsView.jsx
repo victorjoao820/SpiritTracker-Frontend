@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { AddEditProductModal, ConfirmationModal } from "../modals";
 import { productsAPI } from "../../services/api";
+import { ActionButtons } from "../parts/shared/ActionButtons";
+
 
 const ProductsView = () => {
   const [products, setProducts] = useState([]);
@@ -194,21 +196,13 @@ const ProductsView = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => handleEditProduct(product)}
-                          className="text-blue-400 hover:text-blue-300 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
+                        <ActionButtons
+                          onEdit={() => handleEditProduct(product)}
+                          onDelete={() => {
                             setProductToDelete(product);
                             setShowConfirmModal(true);
                           }}
-                          className="text-red-400 hover:text-red-300 font-medium"
-                        >
-                          Delete
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>

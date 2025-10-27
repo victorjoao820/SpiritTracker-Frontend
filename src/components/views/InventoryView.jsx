@@ -3,6 +3,9 @@ import { AddEditContainerModal, ConfirmationModal, ProofDownModal, BottlingModal
 import { containersAPI, productsAPI, containerOperationsAPI } from "../../services/api";
 import { CONTAINER_CAPACITIES_GALLONS } from "../../constants";
 import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../../utils/helpers";
+import { Menu , Milk, ArrowLeftRight, BarrelIcon, BadgePercent } from "lucide-react";
+import { ActionButtons } from "../parts/shared/ActionButtons";
+
 
 const InventoryView = () => {
   const [inventory, setInventory] = useState([]);
@@ -673,29 +676,35 @@ const InventoryView = () => {
                       }`}
                     >
                       <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l border-gray-600 h-full">
-                        <div className="flex justify-center space-x-2">
-                          <button
-                            onClick={() => handleEditContainer(container)}
-                            className="text-red-400 hover:text-red-300 font-medium"
-                          >
-                            Edit
-                          </button>
+                        <div className="flex justify-center items-center space-x-2">
+                          {/* Edit and Delete Buttons */}
+                          <ActionButtons
+                            onEdit={() => handleEditContainer(container)}
+                            onDelete={() => {
+                              setItemToDelete(container);
+                              setShowConfirmModal(true);
+                            }}
+                          />
                           
-                          {/* Dropdown Menu */}
+                          {/* Actions Dropdown Menu */}
                           <div className="relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(isDropdownOpen ? null : container.id);
-                              }}
-                              className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
-                            >
-                              Actions
-                              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                            
+                            <div className="relative inline-block group">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(isDropdownOpen ? null : container.id);
+                                }}
+                                className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
+                              >
+                                <Menu cursor-pointer text-blue-400 hover:text-blue-300 size={16} />
+                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                Actions
+                              </span>
+                            </div>
                             {isDropdownOpen && (
                               <div 
                                 onClick={(e) => e.stopPropagation()}
@@ -709,51 +718,57 @@ const InventoryView = () => {
                                       handleBottle(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="cursor-pointer px-4 py-2 text-sm text-green-400 hover:bg-gray-600 hover:text-green-300 transition-colors"
+                                    className="relative group cursor-pointer px-4 py-2 text-sm text-green-400 hover:bg-gray-600 hover:text-green-300 transition-colors flex items-center"
                                   >
-                                    Bottle
+                                    <Milk size={20} className="mr-2" />
+                                    <span>Bottle</span>
+                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                      Bottle spirits from this container
+                                    </span> */}
                                   </div>
                                   <div
                                     onClick={() => {
                                       handleTransfer(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="cursor-pointer px-4 py-2 text-sm text-purple-400 hover:bg-gray-600 hover:text-purple-300 transition-colors"
+                                    className="relative group cursor-pointer px-4 py-2 text-sm text-purple-400 hover:bg-gray-600 hover:text-purple-300 transition-colors flex items-center"
                                   >
-                                    Transfer
+                                    <ArrowLeftRight size={20} className="mr-2" />
+                                    <span>Transfer</span>
+                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                      Transfer spirit to another container
+                                    </span> */}
                                   </div>
                                   <div
                                     onClick={() => {
                                       handleTankAdjust(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="cursor-pointer px-4 py-2 text-sm text-orange-400 hover:bg-gray-600 hover:text-orange-300 transition-colors"
+                                    className="relative group cursor-pointer px-4 py-2 text-sm text-orange-400 hover:bg-gray-600 hover:text-orange-300 transition-colors flex items-center"
                                   >
-                                    Tank Adjust
+                                    <BarrelIcon size={20} className="mr-2" />
+                                    <span>Tank Adjust</span>
+                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                      Add or remove contents manually
+                                    </span> */}
                                   </div>
                                   <div
                                     onClick={() => {
                                       handleProofDown(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="cursor-pointer px-4 py-2 text-sm text-cyan-400 hover:bg-gray-600 hover:text-cyan-300 transition-colors"
+                                    className="relative group cursor-pointer px-4 py-2 text-sm text-cyan-400 hover:bg-gray-600 hover:text-cyan-300 transition-colors flex items-center"
                                   >
-                                    Proof Down
+                                    <BadgePercent size={20} className="mr-2" />
+                                    <span>Proof Down</span>
+                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                      Reduce proof by adding water
+                                    </span> */}
                                   </div>
                                 </div>
                               </div>
                             )}
                           </div>
-                          
-                          <button
-                            onClick={() => {
-                              setItemToDelete(container);
-                              setShowConfirmModal(true);
-                            }}
-                            className="text-red-400 hover:text-red-300 font-medium"
-                          >
-                            Delete
-                          </button>
                         </div>
                       </div>
                     </div>

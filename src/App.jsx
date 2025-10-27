@@ -107,13 +107,6 @@ function AppContent() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      {/* <Route path="/transfers" element={
-        <ProtectedRoute>
-          <AuthenticatedLayout>
-            <TransfersView />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } /> */}
       <Route path="/transactions" element={
         <ProtectedRoute>
           <AuthenticatedLayout>

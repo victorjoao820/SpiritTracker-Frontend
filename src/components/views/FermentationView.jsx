@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AddEditFermentationModal, ConfirmationModal } from '../modals';
 import { fermentationAPI } from '../../services/api';
+import { ActionButtons } from "../parts/shared/ActionButtons";
 
 const FermentationView = () => {
   const [batches, setBatches] = useState([]);
@@ -207,26 +208,16 @@ const FermentationView = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => {
-                            setEditingBatch(batch);
-                            setShowModal(true);
-                          }}
-                          className="text-blue-400 hover:text-blue-300 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            setItemToDelete(batch);
-                            setShowConfirmModal(true);
-                          }}
-                          className="text-red-400 hover:text-red-300 font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {/* Edit and Delete Buttons */}
+                      <ActionButtons
+                        onEdit={() => {
+                          setEditingBatch(batch);
+                          setShowModal(true);}}
+                        onDelete={() => {
+                          setItemToDelete(batch);
+                          setShowConfirmModal(true);
+                        }}
+                      />
                     </td>
                   </tr>
                 ))}
