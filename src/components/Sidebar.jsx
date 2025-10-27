@@ -101,7 +101,7 @@ const Sidebar = () => {
                     {/* Main menu item with submenu */}
                     <button
                       onClick={() => toggleMenu(item.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-[2vw] transition-all ${
                         shouldHighlightParent ? 'bg-accent shadow-md' : ''
                       }`}
                       style={{
@@ -129,7 +129,7 @@ const Sidebar = () => {
                             <NavLink
                               to={subItem.path}
                               className={({ isActive }) =>
-                                `w-full flex items-center px-4 py-2 rounded-lg transition-all text-sm ${
+                                `w-full flex items-center px-4 py-2 rounded-[2vw] transition-all text-sm ${
                                   isActive ? 'bg-accent shadow-sm' : ''
                                 }`
                               }
@@ -152,7 +152,7 @@ const Sidebar = () => {
                     to={item.path}
                     onClick={() => setExpandedMenus({})}
                     className={({ isActive }) =>
-                      `w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                      `w-full flex items-center space-x-3 px-4 py-3 rounded-[2vw] transition-all ${
                         isActive ? 'bg-accent shadow-md' : ''
                       }`
                     }

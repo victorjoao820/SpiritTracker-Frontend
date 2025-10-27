@@ -181,7 +181,7 @@ const InventoryView = () => {
     
     setPreviousValues({ [container.id]: prevValues });
     setChangedContainerIds([]);
-    
+
     setEditingContainer(container);
     setShowFormModal(true);
   }
@@ -470,10 +470,10 @@ const InventoryView = () => {
             <div className="flex-shrink-0">
               <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                 <div className="flex h-full">
-                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider  transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                     ID
                   </div>
-                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider  transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                     Name
                   </div>
                   <div className="w-24 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
@@ -491,10 +491,10 @@ const InventoryView = () => {
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm  transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
                         {startIndex + index + 1}
                       </div>
-                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap border-r transition-colors" style={{ borderColor: 'var(--border-light)' }}>
+                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap transition-colors" style={{ borderColor: 'var(--border-light)' }}>
                         <div className="text-center">
                           <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
                             {getChangedValueDisplay(
@@ -670,6 +670,8 @@ const InventoryView = () => {
                   const isDropdownOpen = openDropdownId === container.id;
                   // Determine if we're in the last 3 rows to position dropdown above
                   const isNearBottom = index >= currentContainers.length - 3;
+                  // For first 3 rows, show tooltips below the dropdown
+                  const isNearTop = index < 3;
                   
                   return (
                     <div 
@@ -693,18 +695,18 @@ const InventoryView = () => {
                           {/* Actions Dropdown Menu */}
                           <div className="relative">
                             <div className="relative inline-block group">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(isDropdownOpen ? null : container.id);
-                                }}
-                                className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
-                              >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(isDropdownOpen ? null : container.id);
+                              }}
+                              className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
+                            >
                                 <Menu cursor-pointer text-blue-400 hover:text-blue-300 size={16} />
-                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </button>
+                              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
                               <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                                 Actions
                               </span>
@@ -712,62 +714,70 @@ const InventoryView = () => {
                             {isDropdownOpen && (
                               <div 
                                 onClick={(e) => e.stopPropagation()}
-                                className={`absolute right-0 w-35 bg-gray-700 rounded-md shadow-lg z-[9999] border border-gray-600 ${
+                                className={`absolute right-0 w-45 bg-gray-700 rounded-md shadow-lg z-[9999] border border-gray-600 ${
                                   isNearBottom ? 'bottom-full mb-2' : 'top-full mt-2'
                                 }`}
                               >
-                                <div className="py-1">
+                                <div className="py-1 flex">
                                   <div
                                     onClick={() => {
                                       handleBottle(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="relative group cursor-pointer px-4 py-2 text-sm text-green-400 hover:bg-gray-600 hover:text-green-300 transition-colors flex items-center"
+                                    className="relative group cursor-pointer px-3 py-2 text-sm text-green-400 hover:bg-gray-600 hover:text-green-300 transition-colors flex items-center"
                                   >
-                                    <Milk size={20} className="mr-2" />
-                                    <span>Bottle</span>
-                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                      Bottle spirits from this container
-                                    </span> */}
+                                    <Milk size={20} />
+                                    {/* <span>Bottle</span> */}
+                                    <span className={`absolute left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 ${
+                                      isNearTop ? 'top-full mt-2' : 'bottom-full mb-2'
+                                    }`}>
+                                      Bottle spirit
+                                    </span>
                                   </div>
                                   <div
                                     onClick={() => {
                                       handleTransfer(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="relative group cursor-pointer px-4 py-2 text-sm text-purple-400 hover:bg-gray-600 hover:text-purple-300 transition-colors flex items-center"
+                                    className="relative group cursor-pointer px-3 py-2 text-sm text-purple-400 hover:bg-gray-600 hover:text-purple-300 transition-colors flex items-center"
                                   >
-                                    <ArrowLeftRight size={20} className="mr-2" />
-                                    <span>Transfer</span>
-                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                      Transfer spirit to another container
-                                    </span> */}
+                                    <ArrowLeftRight size={20} />
+                                    {/* <span>Transfer</span> */}
+                                    <span className={`absolute left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 ${
+                                      isNearTop ? 'top-full mt-2' : 'bottom-full mb-2'
+                                    }`}>
+                                      Transfer spirit
+                                    </span>
                                   </div>
                                   <div
                                     onClick={() => {
                                       handleTankAdjust(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="relative group cursor-pointer px-4 py-2 text-sm text-orange-400 hover:bg-gray-600 hover:text-orange-300 transition-colors flex items-center"
+                                    className="relative group cursor-pointer px-3 py-2 text-sm text-orange-400 hover:bg-gray-600 hover:text-orange-300 transition-colors flex items-center"
                                   >
-                                    <BarrelIcon size={20} className="mr-2" />
-                                    <span>Tank Adjust</span>
-                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                      Add or remove contents manually
-                                    </span> */}
+                                    <BarrelIcon size={20}/>
+                                    {/* <span>Tank Adjust</span> */}
+                                    <span className={`absolute left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 ${
+                                      isNearTop ? 'top-full mt-2' : 'bottom-full mb-2'
+                                    }`}>
+                                      Tank Adjust
+                                    </span>
                                   </div>
                                   <div
                                     onClick={() => {
                                       handleProofDown(container);
                                       setOpenDropdownId(null);
                                     }}
-                                    className="relative group cursor-pointer px-4 py-2 text-sm text-cyan-400 hover:bg-gray-600 hover:text-cyan-300 transition-colors flex items-center"
+                                    className="relative group cursor-pointer px-3 py-2 text-sm text-cyan-400 hover:bg-gray-600 hover:text-cyan-300 transition-colors flex items-center"
                                   >
-                                    <BadgePercent size={20} className="mr-2" />
-                                    <span>Proof Down</span>
-                                    {/* <span className="absolute left-full ml-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                      Reduce proof by adding water
-                                    </span> */}
+                                    <BadgePercent size={20}/>
+                                    {/* <span>Proof Down</span> */}
+                                    <span className={`absolute left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 ${
+                                      isNearTop ? 'top-full mt-2' : 'bottom-full mb-2'
+                                    }`}>
+                                      Proof Down
+                                    </span>
                                   </div>
                                 </div>
                               </div>
