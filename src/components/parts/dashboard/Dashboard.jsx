@@ -12,7 +12,7 @@ export const Dashboard = ({ inventory }) => {
     const productTotals = {};
 
     inventory.forEach((c) => {
-      if (c.status === "FILLED" && c.netWeight) {
+      if (c.status === "FILLED" && Number(c.netWeight) > 0) {
         filledCount++;
         const product = c.product.name || "Unspecified";
         const {wineGallons, proofGallons} = calcGallonsFromWeight(c.proof, c.netWeight)
@@ -30,6 +30,7 @@ export const Dashboard = ({ inventory }) => {
     const sortedProducts = Object.entries(productTotals).sort(
       ([, a], [, b]) => b - a
     );
+
 
     return {
       totalProofGallons,
