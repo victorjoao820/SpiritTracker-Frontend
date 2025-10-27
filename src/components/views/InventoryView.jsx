@@ -19,15 +19,35 @@ const InventoryView = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   
+  // Track changed containers for highlighting
+  const [changedContainerIds, setChangedContainerIds] = useState([]);
+  const [previousValues, setPreviousValues] = useState({});
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
+  // Sort inventory by fillDate in ascending order (oldest first)
+  const sortedInventory = [...inventory].sort((a, b) => {
+    const dateA = a.fillDate ? new Date(a.fillDate).getTime() : 0;
+    const dateB = b.fillDate ? new Date(b.fillDate).getTime() : 0;
+    
+    // If neither has a fillDate, maintain original order
+    if (!a.fillDate && !b.fillDate) return 0;
+    
+    // Items without fillDate go to the end
+    if (!a.fillDate) return 1;
+    if (!b.fillDate) return -1;
+    
+    // Sort by date ascending (oldest first)
+    return dateA - dateB;
+  });
+  
   // Calculate pagination
-  const totalPages = Math.ceil(inventory.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedInventory.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentContainers = inventory.slice(startIndex, endIndex);
+  const currentContainers = sortedInventory.slice(startIndex, endIndex);
 
   useEffect(() => {
     fetchData();
@@ -82,11 +102,27 @@ const InventoryView = () => {
   const handleUpdateContainer = async (id, containerData) => {
     try {
       const updatedContainer = await containersAPI.update(id, containerData);
-      setInventory((prev) =>
-        prev.map((container) =>
+      
+      // Update the inventory and re-sort by fillDate
+      setInventory((prev) => {
+        const updated = prev.map((container) =>
           container.id === id ? updatedContainer : container
-        )
-      );
+        );
+        return updated.sort((a, b) => {
+          const dateA = a.fillDate ? new Date(a.fillDate).getTime() : 0;
+          const dateB = b.fillDate ? new Date(b.fillDate).getTime() : 0;
+          
+          if (!a.fillDate && !b.fillDate) return 0;
+          if (!a.fillDate) return 1;
+          if (!b.fillDate) return -1;
+          
+          return dateA - dateB;
+        });
+      });
+      
+      // Mark this container as changed (previousValues already set in handleEditContainer)
+      setChangedContainerIds([id]);
+      
       setShowFormModal(false);
       setEditingContainer(null);
       setError("");
@@ -121,29 +157,70 @@ const InventoryView = () => {
     const grossWeight = Number(container.netWeight) + Number(container.tareWeight);
     container.grossWeight = grossWeight.toFixed(2).toString();
 
+    // Store previous values before editing
+    const calculated = calculateContainerData(container);
+    const product = products.find(p => p.id === container.productId);
+    const prevValues = {
+      name: container.name,
+      type: container.type,
+      account: container.account,
+      fillDate: container.fillDate,
+      proof: container.proof,
+      tareWeight: container.tareWeight,
+      netWeight: container.netWeight,
+      grossWeight: calculated.grossWeight,
+      wineGallons: calculated.wineGallons,
+      proofGallons: calculated.proofGallons,
+      productName: product?.name,
+      productId: container.productId
+    };
+    
+    setPreviousValues({ [container.id]: prevValues });
+    setChangedContainerIds([]);
+    
     setEditingContainer(container);
     setShowFormModal(true);
   }
 
   const handleProofDown = (container) => {
+    setChangedContainerIds([]);
+    setPreviousValues({});
     setEditingContainer(container);
     setShowProofDownModal(true);
   }
 
   const handleProofDownSave = async (proofDownData) => {
     try {
+      // Store previous values before updating
+      const previousContainer = inventory.find(c => c.id === proofDownData.containerId);
+      const calculated = calculateContainerData(previousContainer);
+      const prevValues = {
+        proof: previousContainer?.proof,
+        netWeight: previousContainer?.netWeight,
+        grossWeight: calculated.grossWeight,
+        wineGallons: calculated.wineGallons,
+        proofGallons: calculated.proofGallons
+      };
+      
       // Call the proof down API with calculated values
       const updatedContainer = await containersAPI.proofDown(proofDownData);
 
       if (!updatedContainer.success) {
         throw new Error('Proof down failed');
       }
-      // Update the inventory state
+      
+      // Update the inventory state and track changes
       setInventory((prev) =>
         prev.map((container) =>
           container.id === proofDownData.containerId ? updatedContainer : container
         )
       );
+      
+      // Clear previous changes and mark this container as changed
+      setChangedContainerIds([proofDownData.containerId]);
+      setPreviousValues({
+        [proofDownData.containerId]: prevValues
+      });
       
       setShowProofDownModal(false);
       setEditingContainer(null);
@@ -156,15 +233,36 @@ const InventoryView = () => {
   }
 
   const handleBottle = (container) => {
+    setChangedContainerIds([]);
+    setPreviousValues({});
     setEditingContainer(container);
     setShowBottlingModal(true);
   }
 
   const handleBottlingSave = async (bottlingData) => {
     try {
+      // Store previous values before updating
+      const previousContainer = inventory.find(c => c.id === bottlingData.containerId);
+      const calculated = calculateContainerData(previousContainer);
+      const product = products.find(p => p.id === previousContainer?.productId);
+      const prevValues = {
+        netWeight: previousContainer?.netWeight,
+        grossWeight: calculated.grossWeight,
+        wineGallons: calculated.wineGallons,
+        proofGallons: calculated.proofGallons,
+        status: previousContainer?.status,
+        productName: product?.name
+      };
+      
       // Call bottling API
       await containerOperationsAPI.bottle(bottlingData);
       await fetchData(); // Refresh inventory
+      
+      // Mark this container as changed with previous values
+      setChangedContainerIds([bottlingData.containerId]);
+      setPreviousValues({
+        [bottlingData.containerId]: prevValues
+      });
       
       setShowBottlingModal(false);
       setEditingContainer(null);
@@ -177,15 +275,43 @@ const InventoryView = () => {
   }
 
   const handleTransfer = (container) => {
+    setChangedContainerIds([]);
+    setPreviousValues({});
     setEditingContainer(container);
     setShowTransferModal(true);
   }
 
   const handleTransferSave = async (transferData) => {
     try {
+      // Store previous values before updating
+      const previousSource = inventory.find(c => c.id === transferData.sourceContainerId);
+      const previousDest = inventory.find(c => c.id === transferData.destinationContainerId);
+      const sourceCalculated = calculateContainerData(previousSource);
+      const destCalculated = calculateContainerData(previousDest);
+      const prevValues = {
+        [transferData.sourceContainerId]: {
+          netWeight: previousSource?.netWeight,
+          grossWeight: sourceCalculated.grossWeight,
+          wineGallons: sourceCalculated.wineGallons,
+          proofGallons: sourceCalculated.proofGallons,
+          status: previousSource?.status
+        },
+        [transferData.destinationContainerId]: {
+          netWeight: previousDest?.netWeight,
+          grossWeight: destCalculated.grossWeight,
+          wineGallons: destCalculated.wineGallons,
+          proofGallons: destCalculated.proofGallons,
+          status: previousDest?.status
+        }
+      };
+      
       // Call transfer API
       await containerOperationsAPI.transfer(transferData);
       await fetchData(); // Refresh inventory
+      
+      // Mark both containers as changed with previous values
+      setChangedContainerIds([transferData.sourceContainerId, transferData.destinationContainerId]);
+      setPreviousValues(prevValues);
       
       setShowTransferModal(false);
       setEditingContainer(null);
@@ -198,15 +324,34 @@ const InventoryView = () => {
   }
 
   const handleTankAdjust = (container) => {
+    setChangedContainerIds([]);
+    setPreviousValues({});
     setEditingContainer(container);
     setShowAdjustModal(true);
   }
 
   const handleAdjustSave = async (adjustData) => {
     try {
+      // Store previous values before updating
+      const previousContainer = inventory.find(c => c.id === adjustData.containerId);
+      const calculated = calculateContainerData(previousContainer);
+      const prevValues = {
+        netWeight: previousContainer?.netWeight,
+        grossWeight: calculated.grossWeight,
+        wineGallons: calculated.wineGallons,
+        proofGallons: calculated.proofGallons,
+        status: previousContainer?.status
+      };
+      
       // Call adjust API
       await containerOperationsAPI.adjust(adjustData);
       await fetchData(); // Refresh inventory
+      
+      // Mark this container as changed with previous values
+      setChangedContainerIds([adjustData.containerId]);
+      setPreviousValues({
+        [adjustData.containerId]: prevValues
+      });
       
       setShowAdjustModal(false);
       setEditingContainer(null);
@@ -249,6 +394,27 @@ const InventoryView = () => {
     };
   };
 
+  // Helper function to get changed value display
+  const getChangedValueDisplay = (containerId, fieldName, currentValue, formatFn = (v) => v) => {
+    if (!changedContainerIds.includes(containerId)) {
+      return formatFn(currentValue);
+    }
+    
+    const previousValue = previousValues[containerId]?.[fieldName];
+    if (previousValue !== undefined && previousValue !== currentValue) {
+      return (
+        <span className="transition-all duration-500">
+          <span className="text-yellow-300 line-through mr-2">{formatFn(previousValue)}</span>
+          <span className="text-green-300 font-bold">→ {formatFn(currentValue)}</span>
+        </span>
+      );
+    }
+    return formatFn(currentValue);
+  };
+
+  // Check if container is changed
+  const isChanged = (containerId) => changedContainerIds.includes(containerId);
+
 
   return (
     <div className="space-y-6">
@@ -281,7 +447,7 @@ const InventoryView = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-400">Loading inventory...</div>
         </div>
-      ) : inventory.length === 0 ? (
+      ) : sortedInventory.length === 0 ? (
         <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
           <p className="text-gray-400 mb-4">No containers found</p>
           <button
@@ -314,23 +480,43 @@ const InventoryView = () => {
               <div className="bg-gray-800 divide-y divide-gray-700">
                 {currentContainers.map((container, index) => {
                   return (
-                    <div key={container.id} className="flex hover:bg-gray-750 transition-colors h-16">
+                    <div 
+                      key={container.id} 
+                      className={`flex hover:bg-gray-750 transition-all h-16 ${
+                        isChanged(container.id) ? 'bg-yellow-900/30 animate-pulse' : ''
+                      }`}
+                    >
                       <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300 border-r border-gray-600">
                         {startIndex + index + 1}
                       </div>
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap border-r border-gray-600">
                         <div className="text-center">
                           <div className="text-sm font-medium text-white">
-                            {container.name || 'Unnamed'}
+                            {getChangedValueDisplay(
+                              container.id,
+                              'name',
+                              container.name || 'Unnamed',
+                              (v) => v || 'Unnamed'
+                            )}
                           </div>
                           <div className="text-xs text-gray-400 capitalize">
-                            {container.type?.replace(/_/g, ' ')}
+                            {getChangedValueDisplay(
+                              container.id,
+                              'type',
+                              container.type,
+                              (v) => v?.replace(/_/g, ' ') || ''
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm text-pink-300 border-r border-gray-600">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium `}>
-                          {container.account || 'Storage'}
+                          {getChangedValueDisplay(
+                            container.id,
+                            'account',
+                            container.account || 'Storage',
+                            (v) => v || 'Storage'
+                          )}
                         </span>
                       </div>
                     </div>
@@ -378,7 +564,12 @@ const InventoryView = () => {
                   const product = products.find(p => p.id === container.productId);
                   
                   return (
-                    <div key={container.id} className="flex hover:bg-gray-750 transition-colors h-16">
+                    <div 
+                      key={container.id} 
+                      className={`flex hover:bg-gray-750 transition-all h-16 ${
+                        isChanged(container.id) ? 'bg-yellow-900/30' : ''
+                      }`}
+                    >
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
                         <div className="flex flex-col items-center justify-center space-y-1">
                           <div className="w-8 bg-gray-200 h-2">
@@ -396,29 +587,64 @@ const InventoryView = () => {
                       </div>
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
                         <div className="text-sm text-gray-300 text-center">
-                          {product?.name || 'No Product'}
+                          {getChangedValueDisplay(
+                            container.id,
+                            'productName',
+                            product?.name || 'No Product',
+                            (v) => v || 'No Product'
+                          )}
                         </div>
                       </div>
                       <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
-                        {container.fillDate ? new Date(container.fillDate).toLocaleDateString() : 'N/A'}
+                        {getChangedValueDisplay(
+                          container.id,
+                          'fillDate',
+                          container.fillDate,
+                          (v) => v ? new Date(v).toLocaleDateString() : 'N/A'
+                        )}
                       </div>
                       <div className="w-20 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
-                        {container.proof ? `${container.proof}°` : 'N/A'}
+                        {getChangedValueDisplay(
+                          container.id,
+                          'proof',
+                          container.proof,
+                          (v) => v ? `${v}°` : 'N/A'
+                        )}
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
                         {calculated.tareWeight.toFixed(1)} lbs
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
-                        {calculated.grossWeight.toFixed(1)} lbs
+                        {getChangedValueDisplay(
+                          container.id,
+                          'grossWeight',
+                          calculated.grossWeight,
+                          (v) => v.toFixed(1) + ' lbs'
+                        )}
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
-                        {calculated.netWeight.toFixed(1)} lbs
+                        {getChangedValueDisplay(
+                          container.id,
+                          'netWeight',
+                          container.netWeight,
+                          (v) => (v ? Number(v).toFixed(1) : '0.0') + ' lbs'
+                        )}
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm text-gray-300">
-                        {calculated.wineGallons.toFixed(2)} gal
+                        {getChangedValueDisplay(
+                          container.id,
+                          'wineGallons',
+                          calculated.wineGallons,
+                          (v) => v.toFixed(2) + ' gal'
+                        )}
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium text-blue-400">
-                        {calculated.proofGallons.toFixed(2)} PG
+                        {getChangedValueDisplay(
+                          container.id,
+                          'proofGallons',
+                          calculated.proofGallons,
+                          (v) => v.toFixed(2) + ' PG'
+                        )}
                       </div>
                     </div>
                   );
@@ -440,7 +666,12 @@ const InventoryView = () => {
                   const isNearBottom = index >= currentContainers.length - 3;
                   
                   return (
-                    <div key={container.id} className="hover:bg-gray-750 transition-colors h-16 relative">
+                    <div 
+                      key={container.id} 
+                      className={`hover:bg-gray-750 transition-all h-16 relative ${
+                        isChanged(container.id) ? 'bg-yellow-900/30' : ''
+                      }`}
+                    >
                       <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l border-gray-600 h-full">
                         <div className="flex justify-center space-x-2">
                           <button
@@ -550,7 +781,7 @@ const InventoryView = () => {
             </div>
 
             {/* Pagination controls */}
-            {totalPages > 1 && (
+            {totalPages > 1 && sortedInventory.length > itemsPerPage && (
               <>
                 <div className="flex-1 flex justify-between sm:hidden">
                   <button
@@ -572,8 +803,8 @@ const InventoryView = () => {
                   <div>
                     <p className="text-sm text-gray-400">
                       Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                      <span className="font-medium">{Math.min(endIndex, inventory.length)}</span> of{' '}
-                      <span className="font-medium">{inventory.length}</span> results
+                      <span className="font-medium">{Math.min(endIndex, sortedInventory.length)}</span> of{' '}
+                      <span className="font-medium">{sortedInventory.length}</span> results
                     </p>
                   </div>
                   <div>

@@ -7,6 +7,18 @@ import {
 } from "../../utils/helpers";
 import { TRANSACTION_TYPES } from "../../constants";
 
+// Helper function to format date for datetime-local input
+const formatDateTimeLocal = (date) => {
+  if (!date) return "";
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 // --- AddEditContainerModal ---
 export const AddEditContainerModal = ({
   isOpen,
@@ -22,12 +34,13 @@ export const AddEditContainerModal = ({
     () => (products.length > 0 ? products[0].name : "Unspecified Spirit"),
     [products]
   );
+
   const initialFormData = useMemo(() => ({
     name: "",
     type: "wooden_barrel",
     tareWeightLbs: "",
     productType: getDefaultProductType(),
-    fillDate: new Date().toISOString().split("T")[0],
+    fillDate: formatDateTimeLocal(new Date()),
     grossWeightLbs: "",
     proof: "",
     account: "storage",
@@ -55,7 +68,7 @@ export const AddEditContainerModal = ({
       productT = container.product?.name || getDefaultProductType();
       let grossW = container.grossWeight?.toString() || "";
       let prf = container.proof?.toString() || "";
-      let fDate = container.fillDate || new Date().toISOString().split("T")[0];
+      let fDate = formatDateTimeLocal(container.fillDate || new Date());
       let wgInput = container.wineGallons?.toFixed(2) || "";
       let pgInput = container.proofGallons?.toFixed(2) || "";
 
@@ -64,7 +77,7 @@ export const AddEditContainerModal = ({
         prf = "";
         wgInput = "";
         pgInput = "";
-        fDate = new Date().toISOString().split("T")[0];
+        fDate = formatDateTimeLocal(new Date());
       }
 
       setIsAddingEmpty(false);
@@ -92,7 +105,7 @@ export const AddEditContainerModal = ({
       setWineGallonsInput("");
       setProofGallonsInput("");
     }
-  }, [container, mode, isRefillMode, products]);
+  }, [container, mode, isRefillMode, products, getDefaultProductType, initialFormData]);
 
   useEffect(() => {
     const tare = parseFloat(formData.tareWeightLbs) || 0;
@@ -252,6 +265,8 @@ export const AddEditContainerModal = ({
         location: null,
         notes: null
       };
+
+      console.log("Form Data: ", formData);
 
       // Call the onSave function passed from parent
       await onSave(containerData);
@@ -426,15 +441,16 @@ export const AddEditContainerModal = ({
                 htmlFor="fillDate"
                 className="block text-sm font-medium text-gray-300 mt-2"
               >
-                Date of Fill
+                Date & Time of Fill
               </label>
               <input
                 id="fillDate"
-                type="date"
+                type="datetime-local"
                 name="fillDate"
                 value={formData.fillDate}
                 onChange={handleChange}
-                className="mt-1 w-full bg-gray-700 p-2 rounded"
+                readOnly={false}
+                className="mt-1 w-full bg-gray-700 p-2 rounded text-gray-300"
               />
               <label
                 htmlFor="proof"

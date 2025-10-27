@@ -132,7 +132,6 @@ export const TransferModal = ({
         transferAll: transferAll
       };
 
-      console.log("transferData", transferData);
       await onSave(transferData);
       
       // Log the transaction

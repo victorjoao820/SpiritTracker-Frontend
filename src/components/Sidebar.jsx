@@ -40,7 +40,7 @@ const Sidebar = () => {
         { id: 'production-distillation', label: 'Distillation', path: '/production/distillation' },
       ] 
     },
-    { id: 'transfers', label: 'Transfers', icon: ArrowsRightLeftIcon, path: '/transfers' },
+    // { id: 'transfers', label: 'Transfers', icon: ArrowsRightLeftIcon, path: '/transfers' },
     { id: 'transactions', label: 'Transactions', icon: ChartBarIcon, path: '/transactions' },
     { id: 'reports', label: 'Reports', icon: DocumentTextIcon, path: '/reports' },
     { id: 'settings', label: 'Settings', icon: CogIcon, path: '/settings' },
