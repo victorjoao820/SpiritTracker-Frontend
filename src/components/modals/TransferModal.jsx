@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { logTransaction } from "../../utils/helpers";
-import { TRANSACTION_TYPES } from "../../constants";
-import { calculateDerivedValuesFromWeight } from "../../utils/helpers";
+import { TRANSACTION_TYPES, CONTAINER_CAPACITIES_GALLONS } from "../../constants";
+import { calculateDerivedValuesFromWeight, calcGallonsFromWeight, calcWeightFromWineGallons, calcWeightFromProofGallons,  calculateSpiritDensity  } from "../../utils/helpers";
 
 // --- TransferModal ---
 export const TransferModal = ({
@@ -18,6 +18,7 @@ export const TransferModal = ({
   const [transferAll, setTransferAll] = useState(false);
   const [formError, setFormError] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
+  const [capacityInfo, setCapacityInfo] = useState(null);
 
   // Calculate available amounts for source container
   const proof = sourceContainer.proof || 0;
@@ -25,10 +26,9 @@ export const TransferModal = ({
   const tareWeight = sourceContainer.tareWeight ? Number(sourceContainer.tareWeight) : 0;
   const grossWeight = tareWeight + netWeight;
   
-  const { wineGallons, proofGallons } = calculateDerivedValuesFromWeight(
-    tareWeight,
-    grossWeight,
+  const { wineGallons, proofGallons } = calcGallonsFromWeight(
     proof,
+    netWeight,
     sourceContainer.temperatureFahrenheit || 60
   );
 
@@ -36,6 +36,38 @@ export const TransferModal = ({
 
   // Filter available destinations (exclude source container)
   const availableDestinations = allContainers.filter((c) => c.id !== sourceContainer.id);
+
+  // Calculate and display capacity information for selected destination
+  useEffect(() => {
+    if (destinationId) {
+      const destContainer = allContainers.find(c => c.id === destinationId);
+      if (destContainer && destContainer.type) {
+        const capacityGallons = CONTAINER_CAPACITIES_GALLONS[destContainer.type] || 0;
+        const destNetWeight = destContainer.netWeight ? Number(destContainer.netWeight) : 0;
+        const destProof = destContainer.proof || 0;
+        const destTemp = destContainer.temperatureFahrenheit || 60;
+        
+        const { wineGallons: currentWG } = calcGallonsFromWeight(
+          destProof,
+          destNetWeight,
+          destTemp
+        );
+        
+        const availableCapacityWG = capacityGallons - currentWG;
+        
+        setCapacityInfo({
+          capacity: capacityGallons,
+          current: currentWG,
+          available: availableCapacityWG,
+          type: destContainer.type
+        });
+      } else {
+        setCapacityInfo(null);
+      }
+    } else {
+      setCapacityInfo(null);
+    }
+  }, [destinationId, allContainers]);
 
   const handleTransfer = async () => {
     if (isTransferring) return;
@@ -49,6 +81,26 @@ export const TransferModal = ({
       setIsTransferring(false);
       return;
     }
+    let transferAmountLbs = 0;
+    let transferAmountWG = 0;
+    if(transferAll) {
+      transferAmountLbs = netWeight;
+      transferAmountWG = wineGallons;
+    } 
+    else {
+      if(transferUnit === 'wineGallons') 
+      {
+        transferAmountLbs = calcWeightFromWineGallons(proof, parseFloat(transferAmount), sourceContainer.temperatureFahrenheit || 60);
+        transferAmountWG = parseFloat(transferAmount);
+      } else if(transferUnit === 'proofGallons') {
+        transferAmountLbs = calcWeightFromProofGallons(proof, parseFloat(transferAmount), sourceContainer.temperatureFahrenheit || 60);
+        // Convert proof gallons to wine gallons
+        transferAmountWG = parseFloat(transferAmount) / (proof / 100);
+      } else {
+        transferAmountLbs = parseFloat(transferAmount);
+        transferAmountWG = transferAmountLbs / calculateSpiritDensity(proof, sourceContainer.temperatureFahrenheit || 60);
+      }
+    }
 
     if (!transferAll && (!transferAmount || parseFloat(transferAmount) <= 0)) {
       setFormError("Please enter a valid transfer amount.");
@@ -56,12 +108,27 @@ export const TransferModal = ({
       return;
     }
 
+    // Validate destination container capacity
+    if (capacityInfo && transferAmountWG > capacityInfo.available) {
+      setFormError(`❌ Transfer amount (${transferAmountWG.toFixed(2)} WG) exceeds available capacity (${capacityInfo.available.toFixed(2)} WG) in destination container.`);
+      setIsTransferring(false);
+      return;
+    }
+
+    // Validate that source has enough to transfer
+    if (transferAmountLbs > netWeight) {
+      setFormError(`❌ Transfer amount exceeds available amount in source container (${netWeight.toFixed(2)} lbs available).`);
+      setIsTransferring(false);
+      return;
+    }
+    
     try {
       const transferData = {
-        sourceContainerId: sourceContainer.id,
+        sourceContainerId: sourceContainer.id, 
         destinationContainerId: destinationId,
-        transferUnit: transferUnit,
-        amount: transferAll ? netWeight : parseFloat(transferAmount),
+        proof: proof,
+        amount: transferAmountLbs,
+        transAmountWG: transferAmountLbs / calculateSpiritDensity(proof, sourceContainer.temperatureFahrenheit || 60),
         transferAll: transferAll
       };
 
@@ -69,18 +136,27 @@ export const TransferModal = ({
       await onSave(transferData);
       
       // Log the transaction
+      let transferAmountGallons;
+      if(transferUnit === 'wineGallons') {
+        transferAmountGallons = transferAmount;
+      } else if(transferUnit === 'proofGallons') {
+        transferAmountGallons = transferAmount / (proof / 100);
+      } else {
+        transferAmountGallons = (wineGallons * transferAmount / netWeight).toFixed(3);
+      }
       logTransaction({
         transactionType: TRANSACTION_TYPES.TRANSFER_OUT,
         containerId: sourceContainer.id,
         containerName: sourceContainer.name || sourceContainer.type,
-        volumeGallons: transferAll ? -wineGallons : -parseFloat(transferAmount),
-        notes: `Transferred ${transferAll ? 'all' : transferAmount} ${transferUnit} to container`,
+        volumeGallons: transferAmountGallons,
+        notes: `Transferred ${transferAll ? 'All' : transferAmountGallons} ${transferUnit} to container`,
       });
 
       onClose();
     } catch (err) {
       console.error("Transfer error:", err);
-      setFormError("Transfer failed: " + err.message);
+      const errorMessage = err.response?.data?.error || err.message || "Transfer failed. Please check the values and try again.";
+      setFormError(`❌ ${errorMessage}`);
     } finally {
       setIsTransferring(false);
     }
@@ -116,7 +192,7 @@ export const TransferModal = ({
         </h2>
 
         {formError && (
-          <div className="bg-red-600 p-3 rounded mb-4 text-sm">{formError}</div>
+          <div className="bg-red-600 p-3 rounded mb-4 text-sm font-medium animate-pulse">{formError}</div>
         )}
 
         <p className="text-sm text-gray-400 mb-1">
@@ -126,6 +202,27 @@ export const TransferModal = ({
         <p className="text-xs text-blue-400 mb-3">
           💡 You can transfer to empty containers or combine with other {product?.name || 'product'} containers
         </p>
+
+        {/* Capacity Information */}
+        {capacityInfo && (
+          <div className="bg-blue-900 bg-opacity-50 p-3 rounded mb-4 text-sm">
+            <p className="text-blue-300 font-semibold mb-1">Destination Capacity:</p>
+            <div className="grid grid-cols-2 gap-2 text-gray-300">
+              <div>
+                <span className="text-gray-400">Total Capacity:</span> {capacityInfo.capacity.toFixed(2)} WG
+              </div>
+              <div>
+                <span className="text-gray-400">Current Fill:</span> {capacityInfo.current.toFixed(2)} WG
+              </div>
+              <div className="col-span-2">
+                <span className="text-gray-400">Available:</span> 
+                <span className={`font-semibold ${capacityInfo.available < 0 ? 'text-red-400' : capacityInfo.available < 5 ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {' '}{capacityInfo.available.toFixed(2)} WG
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <select

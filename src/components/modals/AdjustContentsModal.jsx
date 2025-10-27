@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { logTransaction } from "../../utils/helpers";
-import { TRANSACTION_TYPES } from "../../constants";
-import { calculateDerivedValuesFromWeight, calcWeightFromWineGallons,  calcWeightFromProofGallons} from "../../utils/helpers";
+import { TRANSACTION_TYPES, CONTAINER_CAPACITIES_GALLONS } from "../../constants";
+import { calculateDerivedValuesFromWeight, calcWeightFromWineGallons, calcWeightFromProofGallons, calcGallonsFromWeight, calculateSpiritDensity } from "../../utils/helpers";
 
 // --- AdjustContentsModal ---
 export const AdjustContentsModal = ({
@@ -15,6 +15,7 @@ export const AdjustContentsModal = ({
   const [inputMethod, setInputMethod] = useState("weight");
   const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [formError, setFormError] = useState("");
+  const [capacityInfo, setCapacityInfo] = useState(null);
 
   // Calculate available amounts
   const proof = container.proof || 0;
@@ -31,6 +32,30 @@ export const AdjustContentsModal = ({
 
   const product = products.find(p => p.id === container.productId);
 
+  // Calculate capacity information
+  useEffect(() => {
+    if (container && container.type) {
+      const capacityGallons = CONTAINER_CAPACITIES_GALLONS[container.type] || 0;
+      
+      if (capacityGallons > 0) {
+        const { wineGallons: currentWG } = calcGallonsFromWeight(
+          proof,
+          netWeight,
+          container.temperatureFahrenheit || 60
+        );
+        
+        const availableCapacityWG = capacityGallons - currentWG;
+        
+        setCapacityInfo({
+          capacity: capacityGallons,
+          current: currentWG,
+          available: availableCapacityWG,
+          type: container.type
+        });
+      }
+    }
+  }, [container, proof, netWeight]);
+
   // Calculate predicted values after adjustment
   const calculatePredictedValues = () => {
     const inputAmount = parseFloat(adjustmentAmount) || 0;
@@ -39,12 +64,17 @@ export const AdjustContentsModal = ({
     }
 
     let weightAdjustment = 0;
+    let adjustmentWG = 0;
+    
     if (inputMethod === "weight") {
       weightAdjustment = inputAmount;
+      adjustmentWG = inputAmount / calculateSpiritDensity(proof, container.temperatureFahrenheit || 60);
     } else if (inputMethod === "wineGallons") {
       weightAdjustment = calcWeightFromWineGallons(proof, inputAmount, container.temperatureFahrenheit || 60);
+      adjustmentWG = inputAmount;
     } else if (inputMethod === "proofGallons") {
       weightAdjustment = calcWeightFromProofGallons(proof, inputAmount, container.temperatureFahrenheit || 60);
+      adjustmentWG = inputAmount / (proof / 100);
     }
 
     const newNetWeight = isAdding 
@@ -61,7 +91,7 @@ export const AdjustContentsModal = ({
     return { 
       newNetWeight: Math.max(0, newNetWeight), 
       newWineGallons: newWG, 
-      newProofGallons: newPG 
+      newProofGallons: newPG
     };
   };
 
@@ -75,19 +105,54 @@ export const AdjustContentsModal = ({
       setFormError("Please enter a valid adjustment amount.");
       return;
     }
+
+    // If adding, validate capacity
+    if (isAdding && capacityInfo) {
+      let adjustmentWG = 0;
+      if (inputMethod === "weight") {
+        adjustmentWG = inputAmount / calculateSpiritDensity(proof, container.temperatureFahrenheit || 60);
+      } else if (inputMethod === "wineGallons") {
+        adjustmentWG = inputAmount;
+      } else if (inputMethod === "proofGallons") {
+        adjustmentWG = inputAmount / (proof / 100);
+      }
+
+      if (adjustmentWG > capacityInfo.available) {
+        setFormError(`Adjustment amount (${adjustmentWG.toFixed(2)} WG) exceeds available capacity (${capacityInfo.available.toFixed(2)} WG) in container.`);
+        return;
+      }
+    }
+
     let amount = 0;
+    let adjustmentWineGallons = 0;
+    
     if(inputMethod === "weight"){
       amount = inputAmount;
+      adjustmentWineGallons = inputAmount / calculateSpiritDensity(proof, container.temperatureFahrenheit || 60);
     }else if(inputMethod === "wineGallons"){
       amount = calcWeightFromWineGallons(proof, inputAmount, container.temperatureFahrenheit || 60);
+      adjustmentWineGallons = inputAmount;
     }else if(inputMethod === "proofGallons"){
       amount = calcWeightFromProofGallons(proof, inputAmount, container.temperatureFahrenheit || 60);
+      adjustmentWineGallons = inputAmount / (proof / 100);
     }
+    
+    // Additional validation before attempting save
+    if (isAdding) {
+      // Check if adjustment would exceed capacity
+      const predictedWG = predictedValues.newWineGallons;
+      if (capacityInfo && predictedWG > capacityInfo.capacity) {
+        const overCapacity = predictedWG - capacityInfo.capacity;
+        setFormError(`This adjustment would exceed container capacity by ${overCapacity.toFixed(2)} WG. Please enter a smaller amount.`);
+        return;
+      }
+    }
+
     try {
       const adjustmentData = {
         containerId: container.id,
         method: isAdding?'add':'remove',
-        wineGallons: wineGallons,
+        wineGallons: adjustmentWineGallons,
         amount: amount,
       };
       await onSave(adjustmentData);
@@ -97,13 +162,14 @@ export const AdjustContentsModal = ({
         transactionType: isAdding ? TRANSACTION_TYPES.ADJUST_CONTAINER_ADD : TRANSACTION_TYPES.ADJUST_CONTAINER_REMOVE,
         containerId: container.id,
         containerName: container.name || container.type,
-        notes: `${isAdding ? 'Added' : 'Removed'} : ${wineGallons} WG are ${isAdding ? 'Added' : 'Removed'} from container!`,
+        notes: `${isAdding ? 'Added' : 'Removed'} : ${adjustmentWineGallons.toFixed(2)} WG are ${isAdding ? 'Added' : 'Removed'} from container!`,
       });
 
       onClose();
     } catch (err) {
       console.error("Adjustment error:", err);
-      setFormError("Adjustment failed: " + err.message);
+      const errorMessage = err.response?.data?.error || err.message || "Adjustment failed. Please try again.";
+      setFormError(`❌ ${errorMessage}`);
     }
   };
 
@@ -117,10 +183,31 @@ export const AdjustContentsModal = ({
         </h2>
 
         {formError && (
-          <div className="bg-red-600 p-3 rounded mb-4 text-sm">{formError}</div>
+          <div className="bg-red-600 p-3 rounded mb-4 text-sm font-medium animate-pulse">{formError}</div>
         )}
 
         <p className="font-semibold text-gray-300 mb-2">Product: {product?.name || 'No Product'}</p>
+
+        {/* Capacity Information */}
+        {capacityInfo && (
+          <div className="bg-yellow-900 bg-opacity-50 p-3 rounded mb-4 text-sm">
+            <p className="text-yellow-300 font-semibold mb-1">Container Capacity:</p>
+            <div className="grid grid-cols-2 gap-2 text-gray-300">
+              <div>
+                <span className="text-gray-400">Total Capacity:</span> {capacityInfo.capacity.toFixed(2)} WG
+              </div>
+              <div>
+                <span className="text-gray-400">Current Fill:</span> {capacityInfo.current.toFixed(2)} WG
+              </div>
+              <div className="col-span-2">
+                <span className="text-gray-400">Available:</span> 
+                <span className={`font-semibold ${capacityInfo.available < 0 ? 'text-red-400' : capacityInfo.available < 5 ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {' '}{capacityInfo.available.toFixed(2)} WG
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="text-sm text-gray-400">
