@@ -1,4 +1,5 @@
-import { Moon, Sun } from 'lucide-react';
+import {Moon, Sun } from 'lucide-react';
+import { BsMoon } from "react-icons/bs";
 import { useTheme } from '../hooks/useTheme';
 
 const ThemeSwitcher = () => {
@@ -14,7 +15,7 @@ const ThemeSwitcher = () => {
       {theme === 'dark' ? (
         <Sun className="w-5 h-5 text-yellow-400" />
       ) : (
-        <Moon className="w-5 h-5 text-gray-600" />
+        <Moon className="w-5 h-5 text-secondary" />
       )}
     </button>
   );

@@ -65,7 +65,7 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className="fixed left-0 top-0 h-screen w-64 border-r flex flex-col transition-colors"
+      className="fixed left-0 top-0 h-screen w-64 z-9999 border-r flex flex-col transition-colors backdrop-blur-xs"
       style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
     >
       {/* Logo/Brand */}
@@ -73,7 +73,8 @@ const Sidebar = () => {
         className="h-16 flex items-center justify-center border-b transition-colors"
         style={{ borderColor: 'var(--border-color)' }}
       >
-        <h1 className="text-xl font-bold transition-colors" style={{ color: 'var(--text-secondary)' }}>Spirit Tracker</h1>
+        {/* <h1 className="text-xl font-bold transition-colors" style={{ color: 'var(--text-secondary)' }}>Spirit Trackers</h1> */}
+        <img src="/src/assets/title.png" alt="Spirit Trackers" className="h-10" />
       </div>
 
       {/* Navigation Menu */}

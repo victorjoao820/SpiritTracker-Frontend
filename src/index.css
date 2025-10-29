@@ -3,19 +3,24 @@
 html {
   /* Light theme (default) */
   --bg-primary: hsl(210, 20%, 98%);
-  --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
+  --bg-secondary: hsla(210, 100%, 98%, 0.9);
+  --bg-tertiary: hsla(210, 100%, 98%, 0.9);
   --bg-card: hsl(0, 0%, 99%);
   --bg-card-hover: hsl(0, 0%, 95%);
   --bg-card: hsl(0, 0%, 99%);
 
   --bg-accent: hsl(202, 100%, 82%);     
+  --bg-selected: hsl(216, 54%, 73%);
 
   --text-primary: #000000;
   --text-secondary: #05070a;
-  --text-tertiary: #111216;
-  --border-color: #e5e7eb;
-  --hover-bg: #f3f4f6;
+  --text-tertiary: #1d202b;
+  --text-hint: hsl(201, 36%, 60%);   
+  --border-color: hsl(201, 14%, 62%); 
+  --hover-bg: hsla(216, 100%, 99%, 0.87);
+
+  --bg-logged-in: hsl(110, 97%, 73%);
+  --bg-logged-out: hsl(201, 32%, 44%);
 }
 
 html.dark {
@@ -23,17 +28,23 @@ html.dark {
   --bg-primary: #000000;
   --bg-secondary: hsl(0, 0%, 9%);
   --bg-tertiary: hsl(0, 0%, 7%);
-  --bg-card: hsl(0, 0%, 9%);
+  --bg-card: hsl(0, 0%, 11%);
   --bg-card-hover: hsl(0, 0%, 14%);
   
   --bg-accent: hsl(171, 9%, 15%);
+  --bg-selected: hsl(216, 54%, 73%);
 
   --bg-table: hsl(0, 0%, 9%);
+  --border-color: hsl(0, 0%, 24%);
+
   --text-primary: #ffffff;
   --text-secondary: #d1d5db;
   --text-tertiary: #9ca3af;
-  --border-color: #374151;
   --hover-bg: #1f2937;
+
+  --bg-logged-in: hsl(110, 97%, 73%);
+  --bg-logged-out: hsl(201, 32%, 44%);
+
 }
 
 body {

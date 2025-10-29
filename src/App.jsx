@@ -1,25 +1,20 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import AuthScreen from "./AuthScreen";
+import { useAuth } from "./hooks/useAuth";
+import AuthRedirect from "./routes/AuthRedirect";
+import ProtectedRoute from "./routes/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { useAuth } from "./hooks/useAuth";
-import AuthScreen from "./AuthScreen";
-import ProtectedRoute from "./routes/ProtectedRoute";
-import Sidebar from "./components/Sidebar";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
 import Header from "./components/Header";
+import Sidebar from "./components/Sidebar";
 import DashboardView from "./components/views/DashboardView";
 import InventoryView from "./components/views/InventoryView";
 import ProductsView from "./components/views/ProductsView";
 import FermentationView from "./components/views/FermentationView";
-
-import AuthRedirect from "./routes/AuthRedirect";
 import DistillationView from "./components/views/DistillationView";
-
-const TransactionsView = () => (
-  <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-    <p className="text-gray-400">Transactions view coming soon...</p>
-  </div>
-);
+import TransactionsView from "./components/views/TransactionView";
 
 const ReportsView = () => (
   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
@@ -48,7 +43,7 @@ function AuthenticatedLayout({ children }) {
         <Header user={user} onLogout={logout} />
 
         {/* Page Content */}
-        <main className="p-6">
+        <main className="p-6 pt-20">
           {children}
         </main>
       </div>

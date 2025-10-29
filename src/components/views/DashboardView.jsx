@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { usersAPI, containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../../services/api';
+import { containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../../services/api';
 import { Dashboard } from '../parts/dashboard/Dashboard';
+
+import { GiCubeforce, GiCube,    } from "react-icons/gi";
+import { BiCylinder} from "react-icons/bi";
 
 const DashboardView = () => {
   const [stats, setStats] = useState({
@@ -64,19 +67,19 @@ const DashboardView = () => {
         <StatCard
           title="Total Containers"
           value={stats.totalContainers}
-          icon="📦"
+          icon={<GiCubeforce />}
           color="bg-orange-500"
         />
         <StatCard
           title="Filled Containers"
           value={stats.filledContainers}
-          icon="✅"
+          icon={<GiCube s/>}
           color="bg-blue-500"
         />
         <StatCard
           title="Empty Containers"
           value={stats.emptyContainers}
-          icon="⬜"
+          icon={<BiCylinder/>}
           color="bg-cyan-600 "
         />
         <StatCard
@@ -132,7 +135,7 @@ const StatCard = ({ title, value, icon, color }) => {
       <div className="text-4xl">
         {icon}
       </div>
-      <span className="text-base">{title}</span>
+      <span className="text-2xl font-bold">{title}</span>
       <span className="text-2xl font-semibold">{value}</span>
     </div>
   );

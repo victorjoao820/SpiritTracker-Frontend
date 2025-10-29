@@ -3,9 +3,12 @@ import { AddEditContainerModal, ConfirmationModal, ProofDownModal, BottlingModal
 import { containersAPI, productsAPI, containerOperationsAPI } from "../../services/api";
 import { CONTAINER_CAPACITIES_GALLONS } from "../../constants";
 import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../../utils/helpers";
-import { Menu , Milk, ArrowLeftRight, BarrelIcon, BadgePercent } from "lucide-react";
 import { ActionButtons } from "../parts/shared/ActionButtons";
 import Pagination from "../parts/shared/Pagination";
+import Button from "../ui/Button";
+
+import { Menu , Milk, ArrowLeftRight, BarrelIcon, BadgePercent } from "lucide-react";
+import { TbCylinderPlus } from "react-icons/tb";
 
 
 const InventoryView = () => {
@@ -207,16 +210,16 @@ const InventoryView = () => {
       };
       
       // Call the proof down API with calculated values
-      const updatedContainer = await containersAPI.proofDown(proofDownData);
+      const response = await containersAPI.proofDown(proofDownData);
 
-      if (!updatedContainer.success) {
+      if (!response.success) {
         throw new Error('Proof down failed');
       }
       
       // Update the inventory state and track changes
       setInventory((prev) =>
         prev.map((container) =>
-          container.id === proofDownData.containerId ? updatedContainer : container
+          container.id === proofDownData.containerId ? response.container : container
         )
       );
       
@@ -425,22 +428,23 @@ const InventoryView = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold text-primary">
             Container Inventory
           </h3>
           <p className="text-sm text-gray-400">
             Manage your distillery containers and barrels
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setEditingContainer(null);
             setShowFormModal(true);
           }}
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors"
+          variant="default"
+          icon={<TbCylinderPlus className="w-4 h-4 mr-2" />}
         >
-          + Add Container
-        </button>
+          Add Container
+        </Button>
       </div>
 
       {/* Error Message */}
@@ -452,14 +456,15 @@ const InventoryView = () => {
           <div className="text-gray-400">Loading inventory...</div>
         </div>
       ) : sortedInventory.length === 0 ? (
-        <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-          <p className="text-gray-400 mb-4">No containers found</p>
-          <button
-            onClick={() => setShowFormModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
+        <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+          <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No containers found</p>
+          <Button
+          onClick={() => setShowFormModal(true)}
+          variant="default"
+          icon={<TbCylinderPlus className="w-4 h-4 mr-2" />}
           >
-            Add Your First Container
-          </button>
+          Add Your First Container
+          </Button>
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>

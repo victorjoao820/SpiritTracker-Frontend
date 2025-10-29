@@ -3,6 +3,8 @@ import { AddEditFermentationModal, ConfirmationModal } from '../modals';
 import { fermentationAPI } from '../../services/api';
 import { ActionButtons } from "../parts/shared/ActionButtons";
 import Pagination from "../parts/shared/Pagination";
+import Button from "../ui/Button";
+import { PiCirclesThreePlus } from "react-icons/pi";
 
 const FermentationView = () => {
   const [batches, setBatches] = useState([]);
@@ -100,22 +102,23 @@ const FermentationView = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold text-primary">
             Fermentation Batches
           </h3>
           <p className="text-sm text-gray-400">
             Manage your fermentation batches and brewing process
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setEditingBatch(null);
             setShowModal(true);
           }}
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors"
+          variant="default"
+          icon={<PiCirclesThreePlus className="w-4 h-4 mr-2" />}
         >
-          + Add Fermentation Batch
-        </button>
+          Fermentation Batch
+        </Button>
       </div>
 
       {/* Error Message */}
@@ -127,17 +130,18 @@ const FermentationView = () => {
           <div className="text-gray-400">Loading fermentation batches...</div>
         </div>
       ) : batches.length === 0 ? (
-        <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-          <p className="text-gray-400 mb-4">No fermentation batches found</p>
-          <button
-            onClick={() => {
-              setEditingBatch(null);
-              setShowModal(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
+        <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+          <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No fermentation batches found</p>
+          <Button
+          onClick={() => {  
+            setEditingBatch(null);
+            setShowModal(true);
+          }}
+            variant="default"
+            icon={<PiCirclesThreePlus className="w-4 h-4 mr-2" />}
           >
-            Add Your First Batch
-          </button>
+          Add First Fermentation Batch
+          </Button>
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>

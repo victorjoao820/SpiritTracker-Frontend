@@ -1,4 +1,6 @@
 import React from 'react';
+import { FcNext , FcPrevious } from "react-icons/fc";
+
 
 const Pagination = ({
   currentPage,
@@ -26,7 +28,7 @@ const Pagination = ({
             <option value={20}>20</option>
             <option value={50}>50</option>
           </select>
-          <span className="text-sm transition-colors" style={{ color: 'var(--text-tertiary)' }}>per page</span>
+          {/* <span className="text-sm transition-colors" style={{ color: 'var(--text-tertiary)' }}>per page</span> */}
         </div>
       )}
 
@@ -61,7 +63,7 @@ const Pagination = ({
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm transition-colors" style={{ color: 'var(--text-tertiary)' }}>
-                Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                &nbsp;&nbsp;<span className="font-medium">{startIndex + 1}</span> -{' '}
                 <span className="font-medium">{Math.min(endIndex, totalItems)}</span> of{' '}
                 <span className="font-medium">{totalItems}</span> results
               </p>
@@ -78,7 +80,7 @@ const Pagination = ({
                     backgroundColor: 'var(--bg-card)'
                   }}
                 >
-                  Previous
+                  <FcPrevious />
                 </button>
                 
                 {/* Page numbers */}
@@ -95,13 +97,14 @@ const Pagination = ({
                         onClick={() => onPageChange(page)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors ${
                           page === currentPage
-                            ? 'z-10 bg-accent text-white'
+                            ? 'z-10 bg-selected text-white'
                             : 'border-light'
                         }`}
                         style={page === currentPage
                           ? { 
-                              backgroundColor: 'hsl(var(--accent))', 
-                              borderColor: 'hsl(var(--accent))'
+                              backgroundColor: 'var(--bg-selected)', 
+                              color: 'var(--text-secondary)', 
+                              borderColor: 'var(--bg-light)'
                             }
                           : { 
                               borderColor: 'var(--border-light)', 
@@ -144,7 +147,7 @@ const Pagination = ({
                     backgroundColor: 'var(--bg-card)'
                   }}
                 >
-                  Next
+                  <FcNext />
                 </button>
               </nav>
             </div>

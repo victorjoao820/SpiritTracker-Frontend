@@ -3,7 +3,8 @@ import { AddEditProductModal, ConfirmationModal } from "../modals";
 import { productsAPI } from "../../services/api";
 import { ActionButtons } from "../parts/shared/ActionButtons";
 import Pagination from "../parts/shared/Pagination";
-
+import Button from "../ui/Button";
+import { LiaCartPlusSolid } from "react-icons/lia";
 
 const ProductsView = () => {
   const [products, setProducts] = useState([]);
@@ -137,12 +138,13 @@ const ProductsView = () => {
             Add or change new products.
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setShowAddProductModal(true)}
-          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          + Add Product
-        </button>
+          variant="default"
+          icon={<LiaCartPlusSolid className="w-4 h-4 mr-2" />}
+          >
+          Add Product
+        </Button>
       </div>
 
       {/* Error Message */}
@@ -156,12 +158,13 @@ const ProductsView = () => {
       ) : products.length === 0 ? (
         <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
           <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No products found</p>
-          <button
-            onClick={() => setShowAddProductModal(true)}
-            className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
+          <Button
+          onClick={() => setShowAddProductModal(true)}
+          variant="default"
+          icon={<LiaCartPlusSolid className="w-4 h-4 mr-2" />}
           >
-            Add Your First Product
-          </button>
+          Add Your First Product
+          </Button>
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>

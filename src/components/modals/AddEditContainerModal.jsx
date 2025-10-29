@@ -4,6 +4,7 @@ import {
   calculateDerivedValuesFromWeight,
   calculateDerivedValuesFromWineGallons,
   calculateDerivedValuesFromProofGallons,
+  logTransaction,
 } from "../../utils/helpers";
 import { TRANSACTION_TYPES } from "../../constants";
 
@@ -260,16 +261,20 @@ export const AddEditContainerModal = ({
         proof: parseFloat(formData.proof) || 0,
         tareWeight: parseFloat(formData.tareWeightLbs) || 0,
         netWeight: calculated.netWeightLbs || 0,
-        temperatureFahrenheit: 60, // Default temperature
+        temperatureFahrenheit: formData.temperatureFahrenheit || 60, // Default temperature
         fillDate: formData.fillDate || null,
-        location: null,
-        notes: null
       };
-
-      console.log("Form Data: ", formData);
 
       // Call the onSave function passed from parent
       await onSave(containerData);
+      let notes = "";
+          logTransaction({
+            transactionType: TRANSACTION_TYPES.EDIT_FILL_DATA_CORRECTION,
+            containerId: container.id,
+            containerName:container.name !== formData.name ? container.name + "|" + formData.name : container.name,
+            productId: container.productId !== formData.productType ? container.productId + "|" + formData.productType : container.productId,
+        });
+      
       onClose();
     } catch (err) {
       console.error("Save error:", err);

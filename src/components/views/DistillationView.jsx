@@ -4,6 +4,9 @@ import { distillationAPI, fermentationAPI, containersAPI, productsAPI } from '..
 import { ActionButtons } from "../parts/shared/ActionButtons";
 import Pagination from "../parts/shared/Pagination";
 
+import Button from "../ui/Button";
+import { GiFurnace } from "react-icons/gi";
+
 const DistillationView = () => {
   const [batches, setBatches] = useState([]);
   const [products, setProducts] = useState([]);
@@ -118,22 +121,23 @@ const DistillationView = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold text-primary">
             Distillation Batches
           </h3>
           <p className="text-sm text-gray-400">
             Manage your distillation batches and spirit production
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setEditingBatch(null);
             setShowModal(true);
           }}
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors"
+          variant="default"
+          icon={<GiFurnace className="w-4 h-4 mr-2" />}
         >
-          + Add Distillation Batch
-        </button>
+          Distillation Batch
+        </Button>
       </div>
 
       {/* Error Message */}
@@ -145,17 +149,18 @@ const DistillationView = () => {
           <div className="text-gray-400">Loading distillation batches...</div>
         </div>
       ) : batches.length === 0 ? (
-        <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-          <p className="text-gray-400 mb-4">No distillation batches found</p>
-          <button
-            onClick={() => {
-              setEditingBatch(null);
-              setShowModal(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
+        <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+          <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No distillation batches found</p>
+         <Button
+          onClick={() => {
+            setEditingBatch(null);
+            setShowModal(true);
+          }}
+          variant="default"
+          icon={<GiFurnace className="w-4 h-4 mr-2" />}
           >
-            Add Your First Batch
-          </button>
+            Add First Distillation Batch
+          </Button>
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
