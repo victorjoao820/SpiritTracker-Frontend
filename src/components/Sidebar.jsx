@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon
 } from './icons/NavigationIcons';
+import titleImage from '../assets/title.png';
 
 const Sidebar = () => {
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -74,7 +75,7 @@ const Sidebar = () => {
         style={{ borderColor: 'var(--border-color)' }}
       >
         {/* <h1 className="text-xl font-bold transition-colors" style={{ color: 'var(--text-secondary)' }}>Spirit Trackers</h1> */}
-        <img src="/src/assets/title.png" alt="Spirit Trackers" className="h-10" />
+        <img src={titleImage} alt="Spirit Trackers" className="h-10" />
       </div>
 
       {/* Navigation Menu */}
