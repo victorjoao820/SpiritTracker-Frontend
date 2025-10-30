@@ -35,7 +35,7 @@ export const AddEditDistillationModal = ({
     if (isEdit && batch) {
       setFormData({
         name: batch.batchName || "",
-        date: batch.startDate ? new Date(batch.startDate).toISOString().split("T")[0] : "",
+        date: batch.startDate ? new Date(batch.startDate).toISOString().slice(0, 16) : "",
         fermentationId: batch.fermentationId || "",
         chargeInputMethod: "weight",
         chargeProof: batch.chargeProof?.toString() || "",
@@ -97,6 +97,8 @@ export const AddEditDistillationModal = ({
         productId: formData.productId || null,
         notes: formData.notes.trim() || null
       };
+
+      console.log("distillationData:", distillationData);
       // Call the onSave function passed from parent
       await onSave(distillationData);
       onClose();
@@ -140,7 +142,7 @@ export const AddEditDistillationModal = ({
             </label>
             <input
               name="date"
-              type="date"
+              type="datetime-local"
               value={formData.date}
               onChange={handleChange}
               className="w-full bg-gray-700 p-2 rounded"

@@ -350,6 +350,7 @@ const InventoryView = () => {
         status: previousContainer?.status
       };
       
+      console.log("adjsut:", adjustData);
       // Call adjust API
       await containerOperationsAPI.adjust(adjustData);
       await fetchData(); // Refresh inventory
@@ -474,14 +475,14 @@ const InventoryView = () => {
             {/* Table 1: ID, Name, Account */}
             <div className="flex-shrink-0">
               <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                <div className="flex h-full">
-                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider  transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                <div className="flex h-full border-b" style={{ borderColor: 'var(--border-color)' }}>
+                  <div className="w-12 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider  transition-colors" style={{ color: 'var(--text-secondary)'}}>
                     ID
                   </div>
-                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider  transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                  <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider  transition-colors" style={{ color: 'var(--text-secondary)'}}>
                     Name
                   </div>
-                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                  <div className="w-24 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider border-r transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }}>
                     Account
                   </div>
                 </div>
@@ -496,10 +497,10 @@ const InventoryView = () => {
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm  transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+                      <div className="w-12 px-4 flex items-center justify-center whitespace-nowrap text-sm  transition-colors" style={{ color: 'var(--text-secondary)'}}>
                         {startIndex + index + 1}
                       </div>
-                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap transition-colors" style={{ borderColor: 'var(--border-light)' }}>
+                      <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap transition-colors">
                         <div className="text-center">
                           <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
                             {getChangedValueDisplay(
@@ -519,7 +520,7 @@ const InventoryView = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm border-r transition-colors" style={{ borderColor: 'var(--border-light)' }}>
+                      <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm border-r transition-colors" style={{ borderColor: 'var(--border-color)' }}>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors" style={{ color: 'var(--text-secondary)' }}>
                           {getChangedValueDisplay(
                             container.id,
@@ -538,7 +539,7 @@ const InventoryView = () => {
             {/* Table 2: Status, Product, Fill Date, Proof, Tare Weight, Gross Weight, Net Weight, Wine Gallons, Proof Gallons */}
             <div className="flex-1 overflow-x-auto">
               <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                <div className="flex min-w-max h-full">
+                <div className="flex min-w-max h-full border-b" style={{ borderColor: 'var(--border-color)' }}>
                   <div className="w-32 px-4 flex items-center justify-center text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Status
                   </div>
@@ -664,9 +665,9 @@ const InventoryView = () => {
             </div>
             
             {/* Table 3: Actions */}
-            <div className="flex-shrink-0 overflow-visible">
-              <div className="h-12 transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                <div className="w-48 px-4 flex items-center justify-center h-full text-xs font-medium uppercase tracking-wider border-l transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-light)' }}>
+            <div className="flex-shrink-0 overflow-visible" >
+              <div className="h-12 transition-colors " style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                <div className="w-48 px-4 flex items-center justify-center h-full text-xs border-l border-b font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-color)'}}>
                   Actions
                 </div>
               </div>
@@ -686,7 +687,7 @@ const InventoryView = () => {
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l h-full transition-colors" style={{ borderColor: 'var(--border-light)' }}>
+                      <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l h-full transition-colors" style={{ borderColor: 'var(--border-color)' }}>
                         <div className="flex justify-center items-center space-x-2">
                           {/* Edit and Delete Buttons */}
                           <ActionButtons

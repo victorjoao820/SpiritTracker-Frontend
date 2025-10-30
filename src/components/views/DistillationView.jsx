@@ -71,6 +71,8 @@ const DistillationView = () => {
   const handleAddBatch = async (batchData) => {
     try {
       const newBatch = await distillationAPI.create(batchData);
+
+      console.log("Batch result", newBatch);
       setBatches(prev => [...prev, newBatch]);
       setShowModal(false);
       setError('');

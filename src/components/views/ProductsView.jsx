@@ -171,7 +171,7 @@ const ProductsView = () => {
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="transition-colors" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+              <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     ID
@@ -204,7 +204,7 @@ const ProductsView = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
+                      <div className="flex justify-end pr-2 space-x-2">
                         <ActionButtons
                           onEdit={() => handleEditProduct(product)}
                           onDelete={() => {
