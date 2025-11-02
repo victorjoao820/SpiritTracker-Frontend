@@ -16,18 +16,18 @@ import DistillationView from "./components/views/DistillationView";
 import TransactionsView from "./components/views/TransactionView";
 import ProductTypeView from "./components/views/ProductTypeView";
 import ContainerTypeView from "./components/views/ContainerTypeView";
-// import FermentersView from "./components/views/FermentersView";
+import FermentersView from "./components/views/FermenterView";
 const ReportsView = () => (
   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
     <p className="text-gray-400">Reports view coming soon...</p>
   </div>
 );
 
-const FermentersView = () => (
-  <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-    <p className="text-gray-400">Fermenters view coming soon...</p>
-  </div>
-);
+// const FermentersView = () => (
+//   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
+//     <p className="text-gray-400">Fermenters view coming soon...</p>
+//   </div>
+// );
 
 
 // Layout component for authenticated pages

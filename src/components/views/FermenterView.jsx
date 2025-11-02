@@ -1,29 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { AddEditContainerTypeModal, ConfirmationModal } from "../modals";
-import { containerKindsAPI } from "../../services/api";
+import { AddEditFermenterModal, ConfirmationModal } from "../modals";
+import { fermentersAPI } from "../../services/api";
 import { ActionButtons } from "../parts/shared/ActionButtons";
 import Pagination from "../parts/shared/Pagination";
 import Button from "../ui/Button";
-import { CubeIcon } from "../icons/NavigationIcons";
+import { LiaCartPlusSolid } from "react-icons/lia";
 
-const ContainerTypeView = () => {
-  const [containerTypes, setContainerTypes] = useState([]);
+const FermenterView = () => {
+  const [fermenters, setFermenters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showAddContainerTypeModal, setShowAddContainerTypeModal] = useState(false);
+  const [showAddFermenterModal, setShowAddFermenterModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [containerTypeToDelete, setContainerTypeToDelete] = useState(null);
-  const [editingContainerType, setEditingContainerType] = useState(null);
+  const [fermenterToDelete, setFermenterToDelete] = useState(null);
+  const [editingFermenter, setEditingFermenter] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Calculate pagination
-  const totalPages = Math.ceil(containerTypes.length / itemsPerPage);
+  const totalPages = Math.ceil(fermenters.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentContainerTypes = containerTypes.slice(startIndex, endIndex);
+  const currentFermenters = fermenters.slice(startIndex, endIndex);
   
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(newItemsPerPage);
@@ -31,86 +31,74 @@ const ContainerTypeView = () => {
   };
 
   useEffect(() => {
-    fetchContainerKinds();
+    fetchFermenters();
   }, []);
 
-  const fetchContainerKinds = async () => {
+  const fetchFermenters = async () => {
     try {
       setIsLoading(true);
-      const fetchedContainerKinds = await containerKindsAPI.getAll();
-      setContainerTypes(fetchedContainerKinds);
+      const fetchedFermenters = await fermentersAPI.getAll();
+      setFermenters(fetchedFermenters);
       setError("");
     } catch (err) {
-      console.error("Error fetching container kinds:", err);
-      setError("Failed to fetch container kinds.");
+      console.error("Error fetching fermenters:", err);
+      setError("Failed to fetch fermenters.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddContainerType = async (savedContainerKind) => {
+  const handleAddFermenter = async (savedFermenter) => {
     try {
       // The modal already saved to DB and closed, just update state
-      setContainerTypes((prev) => [...prev, savedContainerKind]);
-      setEditingContainerType(null);
+      setFermenters((prev) => [...prev, savedFermenter]);
+      setEditingFermenter(null);
       setError("");
     } catch (err) {
-      console.error("Error handling container kind:", err);
-      setError("Failed to update container kind list.");
+      console.error("Error handling fermenter:", err);
+      setError("Failed to update fermenter list.");
     }
   };
 
-  const handleUpdateContainerType = async (savedContainerKind) => {
+  const handleUpdateFermenter = async (savedFermenter) => {
     try {
       // The modal already saved to DB and closed, just update state
-      setContainerTypes((prev) =>
-        prev.map((ct) =>
-          ct.id === savedContainerKind.id ? savedContainerKind : ct
+      setFermenters((prev) =>
+        prev.map((fermenter) =>
+          fermenter.id === savedFermenter.id ? savedFermenter : fermenter
         )
       );
-      setEditingContainerType(null);
+      setEditingFermenter(null);
       setError("");
     } catch (err) {
-      console.error("Error handling container kind:", err);
-      setError("Failed to update container kind list.");
+      console.error("Error handling fermenter:", err);
+      setError("Failed to update fermenter list.");
     }
   };
 
-  const handleDeleteContainerType = async (id) => {
+  const handleDeleteFermenter = async (id) => {
     try {
-      await containerKindsAPI.delete(id);
-      setContainerTypes((prev) => prev.filter((ct) => ct.id !== id));
+      await fermentersAPI.delete(id);
+      setFermenters((prev) => prev.filter((fermenter) => fermenter.id !== id));
       setShowConfirmModal(false);
-      setContainerTypeToDelete(null);
+      setFermenterToDelete(null);
       setError("");
       
       // Reset to first page if current page becomes empty
-      const remainingTypes = containerTypes.filter((ct) => ct.id !== id);
-      const newTotalPages = Math.ceil(remainingTypes.length / itemsPerPage);
+      const remainingFermenters = fermenters.filter((fermenter) => fermenter.id !== id);
+      const newTotalPages = Math.ceil(remainingFermenters.length / itemsPerPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
     } catch (err) {
-      console.error("Error deleting container kind:", err);
-      setError("Failed to delete container kind.");
+      console.error("Error deleting fermenter:", err);
+      setError(err.response?.data?.error || "Failed to delete fermenter.");
     }
   };
 
-  const handleEditContainerType = (containerType) => {
-    setEditingContainerType(containerType);
-    setShowAddContainerTypeModal(true);
-  };
-
-  // Helper function to format tare weight
-  const formatTareWeight = (tareWeight) => {
-    if (!tareWeight && tareWeight !== 0) return "N/A";
-    return `${parseFloat(tareWeight).toFixed(2)} lbs`;
-  };
-
-  // Helper function to format total volume
-  const formatCapacityGallons = (capacityGallons) => {
-    if (!capacityGallons && capacityGallons !== 0) return "N/A";
-    return `${parseFloat(capacityGallons).toFixed(2)} gal`;
+  const handleEditFermenter = (fermenter) => {
+    setEditingFermenter(fermenter);
+    setShowAddFermenterModal(true);
   };
 
   return (
@@ -119,44 +107,38 @@ const ContainerTypeView = () => {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold transition-colors" style={{ color: 'var(--text-primary)' }}>
-            Container Types
+            Fermenters
           </h3>
           <p className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-            Manage container type templates with their default tare weight and total volume.
+            Add or change fermenters.
           </p>
         </div>
         <Button
-          onClick={() => {
-            setEditingContainerType(null);
-            setShowAddContainerTypeModal(true);
-          }}
+          onClick={() => setShowAddFermenterModal(true)}
           variant="default"
-          icon={<CubeIcon className="w-4 h-4 mr-2" />}
-        >
-          Add Container Type
+          icon={<LiaCartPlusSolid className="w-4 h-4 mr-2" />}
+          >
+          Add Fermenter
         </Button>
       </div>
 
       {/* Error Message */}
       {error && <div className="bg-red-700 p-4 rounded-lg">{error}</div>}
 
-      {/* Container Types Table */}
+      {/* Fermenters Table */}
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-400">Loading container types...</div>
+          <div className="text-gray-400">Loading fermenters...</div>
         </div>
-      ) : containerTypes.length === 0 ? (
+      ) : fermenters.length === 0 ? (
         <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-          <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No container types found</p>
+          <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No fermenters found</p>
           <Button
-            onClick={() => {
-              setEditingContainerType(null);
-              setShowAddContainerTypeModal(true);
-            }}
-            variant="default"
-            icon={<CubeIcon className="w-4 h-4 mr-2" />}
+          onClick={() => setShowAddFermenterModal(true)}
+          variant="default"
+          icon={<LiaCartPlusSolid className="w-4 h-4 mr-2" />}
           >
-            Add Your First Container Type
+          Add Your First Fermenter
           </Button>
         </div>
       ) : (
@@ -173,10 +155,10 @@ const ContainerTypeView = () => {
                     Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                    Tare Weight
+                    Capacity Gallons
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                    Capacity(Gallons)
+                    Description
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     Actions
@@ -184,32 +166,32 @@ const ContainerTypeView = () => {
                 </tr>
               </thead>
               <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                {currentContainerTypes.map((containerType, index) => (
-                  <tr key={containerType.id} className="transition-colors hover:opacity-80" style={{ borderColor: 'var(--border-color)' }}>
+                {currentFermenters.map((fermenter, index) => (
+                  <tr key={fermenter.id} className="transition-colors hover:opacity-80" style={{ borderColor: 'var(--border-color)' }}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
                       {startIndex + index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
-                        {containerType.name}
+                        {fermenter.name}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm transition-colors" style={{ color: 'var(--text-tertiary)' }}>
-                        {formatTareWeight(containerType.tareWeight)}
+                      <div className="text-sm transition-colors" style={{ color: 'var(--text-primary)' }}>
+                        {fermenter.capacityGallons ? `${fermenter.capacityGallons} gal` : 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm transition-colors" style={{ color: 'var(--text-tertiary)' }}>
-                        {formatCapacityGallons(containerType.capacityGallons)}
+                    <td className="px-6 py-4">
+                      <div className="text-sm max-w-xs truncate transition-colors" style={{ color: 'var(--text-tertiary)' }}>
+                        {fermenter.notes || 'No description'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end pr-2 space-x-2">
                         <ActionButtons
-                          onEdit={() => handleEditContainerType(containerType)}
+                          onEdit={() => handleEditFermenter(fermenter)}
                           onDelete={() => {
-                            setContainerTypeToDelete(containerType);
+                            setFermenterToDelete(fermenter);
                             setShowConfirmModal(true);
                           }}
                         />
@@ -226,7 +208,7 @@ const ContainerTypeView = () => {
             currentPage={currentPage}
             totalPages={totalPages}
             itemsPerPage={itemsPerPage}
-            totalItems={containerTypes.length}
+            totalItems={fermenters.length}
             startIndex={startIndex}
             endIndex={endIndex}
             onPageChange={setCurrentPage}
@@ -236,30 +218,29 @@ const ContainerTypeView = () => {
       )}
 
       {/* Modals */}
-      {showAddContainerTypeModal && (
-        <AddEditContainerTypeModal
-          isOpen={showAddContainerTypeModal}
+      {showAddFermenterModal && (
+        <AddEditFermenterModal
+          isOpen={showAddFermenterModal}
           onClose={() => {
-            setShowAddContainerTypeModal(false);
-            setEditingContainerType(null);
-            setError("");
+            setShowAddFermenterModal(false);
+            setEditingFermenter(null);
           }}
-          mode={editingContainerType ? "edit" : "add"}
-          containerType={editingContainerType}
-          onSave={editingContainerType ? handleUpdateContainerType : handleAddContainerType}
+          mode={editingFermenter ? "edit" : "add"}
+          fermenter={editingFermenter}
+          onSave={editingFermenter ? handleUpdateFermenter : handleAddFermenter}
         />
       )}
 
       {showConfirmModal && (
         <ConfirmationModal
-          message="Are you sure you want to delete this container kind?"
+          message="Are you sure you want to delete this fermenter?"
           onCancel={() => {
             setShowConfirmModal(false);
-            setContainerTypeToDelete(null);
+            setFermenterToDelete(null);
           }}
           onConfirm={() => {
-            if (containerTypeToDelete) {
-              handleDeleteContainerType(containerTypeToDelete.id);
+            if (fermenterToDelete) {
+              handleDeleteFermenter(fermenterToDelete.id);
             }
           }}
         />
@@ -268,4 +249,5 @@ const ContainerTypeView = () => {
   );
 };
 
-export default ContainerTypeView;
+export default FermenterView;
+

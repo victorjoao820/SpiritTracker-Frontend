@@ -207,6 +207,42 @@ export const productsAPI = {
   }
 };
 
+// Fermenters API
+export const fermentersAPI = {
+  // Get all fermenters
+  getAll: async () => {
+    return apiRequest('/fermenters');
+  },
+
+  // Get single fermenter
+  getById: async (id) => {
+    return apiRequest(`/fermenters/${id}`);
+  },
+
+  // Create fermenter
+  create: async (fermenterData) => {
+    return apiRequest('/fermenters', {
+      method: 'POST',
+      body: JSON.stringify(fermenterData),
+    });
+  },
+
+  // Update fermenter
+  update: async (id, fermenterData) => {
+    return apiRequest(`/fermenters/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(fermenterData),
+    });
+  },
+
+  // Delete fermenter
+  delete: async (id) => {
+    return apiRequest(`/fermenters/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 // Containers API
 export const containersAPI = {
   // Get all containers
@@ -545,5 +581,6 @@ export default {
   distillation: distillationAPI,
   ttbReports: ttbReportsAPI,
   transactions: transactionsAPI,
-  users: usersAPI
+  users: usersAPI,
+  fermenters: fermentersAPI
 };
