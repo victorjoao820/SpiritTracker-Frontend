@@ -260,8 +260,43 @@ export const containersAPI = {
       ),
     });
   }
-
   
+};
+
+// Container Kinds API
+export const containerKindsAPI = {
+  // Get all container kinds
+  getAll: async () => {
+    return apiRequest('/container-kinds');
+  },
+
+  // Get single container kind
+  getById: async (id) => {
+    return apiRequest(`/container-kinds/${id}`);
+  },
+
+  // Create container kind
+  create: async (containerKindData) => {
+    return apiRequest('/container-kinds', {
+      method: 'POST',
+      body: JSON.stringify(containerKindData),
+    });
+  },
+
+  // Update container kind
+  update: async (id, containerKindData) => {
+    return apiRequest(`/container-kinds/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(containerKindData),
+    });
+  },
+
+  // Delete container kind
+  delete: async (id) => {
+    return apiRequest(`/container-kinds/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Fermentation API

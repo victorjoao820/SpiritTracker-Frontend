@@ -4,6 +4,7 @@ import {
   HomeIcon, 
   CubeIcon, 
   BeakerIcon, 
+  ArrowsRightLeftIcon,
   ChartBarIcon, 
   DocumentTextIcon,
   CogIcon,
@@ -31,7 +32,6 @@ const Sidebar = () => {
       icon: CubeIcon,
       submenu: [
         { id: 'inventory-containers', label: 'Containers', path: '/inventory/containers' },
-        { id: 'inventory-products', label: 'Products', path: '/inventory/products' }
       ]
     },
     { id: 'production', label: 'Production', icon: BeakerIcon,
@@ -40,9 +40,21 @@ const Sidebar = () => {
         { id: 'production-distillation', label: 'Distillation', path: '/production/distillation' },
       ] 
     },
+    { id: 'transfer', label: 'Transfer', icon: ArrowsRightLeftIcon,
+      submenu:[
+        { id: 'transfer-inbound', label: 'Transfer Inbound', path: '/transfer/inbound' },
+        { id: 'transfer-outbound', label: 'Transfer Outbound', path: '/transfer/outbound' },
+      ] 
+    },
     { id: 'transactions', label: 'Transactions', icon: ChartBarIcon, path: '/transactions' },
     { id: 'reports', label: 'Reports', icon: DocumentTextIcon, path: '/reports' },
-    { id: 'settings', label: 'Settings', icon: CogIcon, path: '/settings' },
+    { id: 'settings', label: 'Settings', icon: CogIcon,
+      submenu:[
+        { id: 'settings-producttype', label: 'Product Type', path: '/settings/producttype' },
+        { id: 'settings-containertype', label: 'Container Type', path: '/settings/containertype' },
+        { id: 'settings-fermenters', label: 'Fermenters', path: '/settings/fermenters' },
+      ]
+    },
   ];
 
   const toggleMenu = (menuId) => {

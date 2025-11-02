@@ -6,7 +6,7 @@ import Pagination from "../parts/shared/Pagination";
 import Button from "../ui/Button";
 import { LiaCartPlusSolid } from "react-icons/lia";
 
-const ProductsView = () => {
+const ProductTypeView = () => {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -266,4 +266,4 @@ const ProductsView = () => {
   );
 };
 
-export default ProductsView;
+export default ProductTypeView;

@@ -11,22 +11,24 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import DashboardView from "./components/views/DashboardView";
 import InventoryView from "./components/views/InventoryView";
-import ProductsView from "./components/views/ProductsView";
 import FermentationView from "./components/views/FermentationView";
 import DistillationView from "./components/views/DistillationView";
 import TransactionsView from "./components/views/TransactionView";
-
+import ProductTypeView from "./components/views/ProductTypeView";
+import ContainerTypeView from "./components/views/ContainerTypeView";
+// import FermentersView from "./components/views/FermentersView";
 const ReportsView = () => (
   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
     <p className="text-gray-400">Reports view coming soon...</p>
   </div>
 );
 
-const SettingsView = () => (
+const FermentersView = () => (
   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
-    <p className="text-gray-400">Settings view coming soon...</p>
+    <p className="text-gray-400">Fermenters view coming soon...</p>
   </div>
 );
+
 
 // Layout component for authenticated pages
 function AuthenticatedLayout({ children }) {
@@ -75,13 +77,13 @@ function AppContent() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      <Route path="/inventory/products" element={
+      {/* <Route path="/inventory/products" element={
         <ProtectedRoute>
           <AuthenticatedLayout>
             <ProductsView />
           </AuthenticatedLayout>
         </ProtectedRoute>
-      } />
+      } /> */}
       <Route path="/production/fermentation" element={
         <ProtectedRoute>
           <AuthenticatedLayout>
@@ -110,10 +112,25 @@ function AppContent() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      <Route path="/settings" element={
+
+      <Route path="/settings/producttype" element={
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <SettingsView />
+            <ProductTypeView />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/settings/containertype" element={
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <ContainerTypeView />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/settings/fermenters" element={
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <FermentersView />
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />

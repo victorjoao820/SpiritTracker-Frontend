@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { containersAPI, transactionsAPI, fermentationAPI, distillationAPI } from '../../services/api';
 import { Dashboard } from '../parts/dashboard/Dashboard';
 
-import { GiCubeforce, GiCube,    } from "react-icons/gi";
-import { BiCylinder} from "react-icons/bi";
+import { GiCubeforce, GiCube, } from "react-icons/gi";
+import { BiCylinder } from "react-icons/bi";
 
 const DashboardView = () => {
   const [stats, setStats] = useState({
@@ -41,7 +41,7 @@ const DashboardView = () => {
           recentTransactions: transactions.transactions || transactions || []
         });
 
-        
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -73,13 +73,13 @@ const DashboardView = () => {
         <StatCard
           title="Filled Containers"
           value={stats.filledContainers}
-          icon={<GiCube s/>}
+          icon={<GiCube s />}
           color="bg-blue-500"
         />
         <StatCard
           title="Empty Containers"
           value={stats.emptyContainers}
-          icon={<BiCylinder/>}
+          icon={<BiCylinder />}
           color="bg-cyan-600 "
         />
         <StatCard
@@ -131,7 +131,8 @@ const DashboardView = () => {
 
 const StatCard = ({ title, value, icon, color }) => {
   return (
-    <div className={`${color} p-6 rounded-lg flex flex-col items-center justify-center space-y-3 text-white text-center transition-transform hover:scale-105`}>
+    <div className={`${color} p-6 rounded-lg flex flex-col items-center justify-center space-y-3 text-white text-center transition-transform hover:scale-105 `}
+      style={{ transition: 'all 0.3s ease', boxShadow: '0 8px 32px rgba(214, 23, 23, 0.2)', backdropFilter: 'blur(10px)', borderColor: 'var(--border-color)' }}>
       <div className="text-4xl">
         {icon}
       </div>

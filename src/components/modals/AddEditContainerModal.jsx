@@ -7,6 +7,7 @@ import {
   logTransaction,
 } from "../../utils/helpers";
 import { TRANSACTION_TYPES } from "../../constants";
+import { containerKindsAPI } from "../../services/api";
 
 // Helper function to format date for datetime-local input
 const formatDateTimeLocal = (date) => {
@@ -38,7 +39,7 @@ export const AddEditContainerModal = ({
 
   const initialFormData = useMemo(() => ({
     name: "",
-    type: "wooden_barrel",
+    type: "",
     tareWeightLbs: "",
     productType: getDefaultProductType(),
     fillDate: formatDateTimeLocal(new Date()),
@@ -62,6 +63,23 @@ export const AddEditContainerModal = ({
   const [fillInputMethod, setFillInputMethod] = useState("weight");
   const [wineGallonsInput, setWineGallonsInput] = useState("");
   const [proofGallonsInput, setProofGallonsInput] = useState("");
+  const [containerKinds, setContainerKinds] = useState([]);
+
+  // Fetch container kinds when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchContainerKinds();
+    }
+  }, [isOpen]);
+
+  const fetchContainerKinds = async () => {
+    try {
+      const fetchedKinds = await containerKindsAPI.getAll();
+      setContainerKinds(fetchedKinds);
+    } catch (err) {
+      console.error("Error fetching container kinds:", err);
+    }
+  };
 
   useEffect(() => {
     let productT = getDefaultProductType();
@@ -82,9 +100,11 @@ export const AddEditContainerModal = ({
       }
 
       setIsAddingEmpty(false);
+      // Get container kind name from containerKind relation if available, otherwise use type
+      const containerKindName = container.containerKind?.name || container.type || (containerKinds.length > 0 ? containerKinds[0].name : "");
       setFormData({
         name: container.name || "",
-        type: container.type || "wooden_barrel",
+        type: containerKindName,
         tareWeightLbs: container.tareWeight?.toString() || "",
         productType: productT,
         fillDate: fDate,
@@ -97,8 +117,12 @@ export const AddEditContainerModal = ({
       setFillInputMethod("weight");
     } else {
       setIsAddingEmpty(true);
+      const defaultType = containerKinds.length > 0 ? containerKinds[0].name : "";
+      const defaultContainerKind = containerKinds.length > 0 ? containerKinds[0] : null;
       setFormData({
         ...initialFormData,
+        type: defaultType,
+        tareWeightLbs: defaultContainerKind?.tareWeight?.toString() || "",
         productType: "",
         account: "storage",
         status: "EMPTY"
@@ -106,7 +130,7 @@ export const AddEditContainerModal = ({
       setWineGallonsInput("");
       setProofGallonsInput("");
     }
-  }, [container, mode, isRefillMode, products, getDefaultProductType, initialFormData]);
+  }, [container, mode, isRefillMode, products, getDefaultProductType, initialFormData, containerKinds]);
 
   useEffect(() => {
     const tare = parseFloat(formData.tareWeightLbs) || 0;
@@ -183,7 +207,21 @@ export const AddEditContainerModal = ({
     const { name, value } = e.target;
     if (name === "wineGallonsInput") setWineGallonsInput(value);
     else if (name === "proofGallonsInput") setProofGallonsInput(value);
-    else setFormData((prev) => ({ ...prev, [name]: value }));
+    else {
+      setFormData((prev) => {
+        const updated = { ...prev, [name]: value };
+        
+        // If container type is changed, update tare weight from selected container kind
+        if (name === "type" && value) {
+          const selectedContainerKind = containerKinds.find(kind => kind.name === value);
+          if (selectedContainerKind && selectedContainerKind.tareWeight !== null) {
+            updated.tareWeightLbs = selectedContainerKind.tareWeight.toString();
+          }
+        }
+        
+        return updated;
+      });
+    }
     setFormError("");
   };
 
@@ -250,11 +288,15 @@ export const AddEditContainerModal = ({
     setFormError("");
 
     try {
+      // Find container kind by name to get containerKindId
+      const selectedContainerKind = containerKinds.find(kind => kind.name === formData.type);
+      
       // Determine if container is empty
       // Prepare container data for API
       const containerData = {
         name: formData.name,
-        type: formData.type,
+        type: formData.type, // Keep type as the name for backward compatibility
+        containerKindId: selectedContainerKind?.id || null,
         productId:  isAddingEmpty? null : (products.find(p => p.name === formData.productType)?.id || null),
         status: isAddingEmpty ? 'EMPTY' : 'FILLED',
         account: formData.account || 'storage',
@@ -335,13 +377,14 @@ export const AddEditContainerModal = ({
               value={formData.type}
               onChange={handleChange}
               className="mt-1 w-full bg-gray-700 p-2 rounded"
+              required
             >
-              <option value="wooden_barrel">Wooden Barrel</option>
-              <option value="metal_drum">Metal Drum</option>
-              <option value="square_tank">Square Tank (IBC)</option>
-              <option value="tote">Tote (250gal)</option>
-              <option value="five_gallon_tote">5 Gallon Tote</option>
-              <option value="still">Still</option>
+              <option value="">Select Container Type</option>
+              {containerKinds.map((kind) => (
+                <option key={kind.id} value={kind.name}>
+                  {kind.name}
+                </option>
+              ))}
             </select>
             <label
               htmlFor="tareWeightLbs"
