@@ -41,8 +41,10 @@ export const TransferModal = ({
   useEffect(() => {
     if (destinationId) {
       const destContainer = allContainers.find(c => c.id === destinationId);
-      if (destContainer && destContainer.type) {
-        const capacityGallons = CONTAINER_CAPACITIES_GALLONS[destContainer.type] || 0;
+      console.log("destContainer:", destContainer);
+
+      if (destContainer && destContainer.containerKindId) {
+        const capacityGallons = Number(destContainer.containerKind?.capacityGallons) || 0;
         const destNetWeight = destContainer.netWeight ? Number(destContainer.netWeight) : 0;
         const destProof = destContainer.proof || 0;
         const destTemp = destContainer.temperatureFahrenheit || 60;

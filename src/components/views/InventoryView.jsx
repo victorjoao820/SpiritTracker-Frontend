@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { AddEditContainerModal, ConfirmationModal, ProofDownModal, BottlingModal, TransferModal, AdjustContentsModal } from "../modals";
-import { containersAPI, productsAPI, containerOperationsAPI } from "../../services/api";
-import { CONTAINER_CAPACITIES_GALLONS } from "../../constants";
+import { containersAPI, containerKindsAPI, productsAPI, containerOperationsAPI } from "../../services/api";
 import { calculateDerivedValuesFromWeight, calculateSpiritDensity} from "../../utils/helpers";
 import { ActionButtons } from "../parts/shared/ActionButtons";
 import Pagination from "../parts/shared/Pagination";
-import Button from "../ui/Button";
 
 import { Menu , Milk, ArrowLeftRight, BarrelIcon, BadgePercent } from "lucide-react";
 import { TbCylinderPlus } from "react-icons/tb";
+import Button from "../ui/Button";
 
 
 const InventoryView = () => {
   const [inventory, setInventory] = useState([]);
+  const [containerKinds, setContainerKinds] = useState([]);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
@@ -77,11 +77,13 @@ const InventoryView = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [fetchedInventory, fetchedProducts] = await Promise.all([
+      const [fetchedInventory, fetchedProducts, fetchedContainerKinds] = await Promise.all([
         containersAPI.getAll(),
         productsAPI.getAll(),
+        containerKindsAPI.getAll(),
       ]);
       setInventory(fetchedInventory);
+      setContainerKinds(fetchedContainerKinds);
       setProducts(fetchedProducts);
       setError("");
     } catch (err) {
@@ -200,6 +202,8 @@ const InventoryView = () => {
     try {
       // Store previous values before updating
       const previousContainer = inventory.find(c => c.id === proofDownData.containerId);
+      // previousContainer.containerKind = await containerKindsAPI.getById(previousContainer.containerKindId);
+      
       const calculated = calculateContainerData(previousContainer);
       const prevValues = {
         proof: previousContainer?.proof,
@@ -350,7 +354,6 @@ const InventoryView = () => {
         status: previousContainer?.status
       };
       
-      console.log("adjsut:", adjustData);
       // Call adjust API
       await containerOperationsAPI.adjust(adjustData);
       await fetchData(); // Refresh inventory
@@ -378,12 +381,11 @@ const InventoryView = () => {
   
   // Helper function to calculate container data
   const calculateContainerData = (container) => {
-    const capacity = CONTAINER_CAPACITIES_GALLONS[container.type] || 0;
+    const capacity = container.containerKind?.capacityGallons || 0;
     const netWeight = container.netWeight ? Number(container.netWeight) : 0;
     const proof = container.proof ? Number(container.proof) : 0;
     const temperatureFahrenheit = container.temperatureFahrenheit? Number(container.temperatureFahrenheit) : 60;
     // Calculate percentage full based on net weight (simplified)
-
     let percentageFull = 0;
     percentageFull = ((netWeight * 100) /(calculateSpiritDensity(proof, temperatureFahrenheit) *capacity)).toFixed(0);
 

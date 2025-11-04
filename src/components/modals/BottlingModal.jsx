@@ -103,7 +103,6 @@ export const BottlingModal = ({
         bottlingData.adjustmentAmount = parseFloat(adjustmentAmount);
         bottlingData.remainderLbs = 0;
       }
-      console.log("bottlingData", bottlingData);
 
       await onSave(bottlingData);
       

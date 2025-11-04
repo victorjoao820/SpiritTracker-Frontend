@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import {
+  calculateSpiritDensity,
+  calculateDerivedValuesFromWeight,
+  calculateDerivedValuesFromWineGallons,
+  calculateDerivedValuesFromProofGallons,
+} from "../../utils/helpers";
 
 export const AddEditDistillationModal = ({
   isOpen,
@@ -29,6 +35,28 @@ export const AddEditDistillationModal = ({
     notes: ""
   });
   const [formError, setFormError] = useState("");
+  
+  // State for calculated values - Charge section
+  const [chargeCalculated, setChargeCalculated] = useState({
+    netWeightLbs: 0,
+    wineGallons: 0,
+    proofGallons: 0,
+  });
+  
+  // State for calculated values - Yield section
+  const [yieldCalculated, setYieldCalculated] = useState({
+    netWeightLbs: 0,
+    wineGallons: 0,
+    proofGallons: 0,
+  });
+  
+  // State for charge wine gallons and proof gallons inputs (when method is not weight)
+  const [chargeWineGallonsInput, setChargeWineGallonsInput] = useState("");
+  const [chargeProofGallonsInput, setChargeProofGallonsInput] = useState("");
+  
+  // State for yield wine gallons and proof gallons inputs (when method is not weight)
+  const [yieldWineGallonsInput, setYieldWineGallonsInput] = useState("");
+  const [yieldProofGallonsInput, setYieldProofGallonsInput] = useState("");
 
   // Initialize form data when editing
   useEffect(() => {
@@ -54,8 +82,133 @@ export const AddEditDistillationModal = ({
     }
   }, [isEdit, batch]);
 
+  // Calculate charge values
+  useEffect(() => {
+    const proof = parseFloat(formData.chargeProof) || 0;
+    const temperature = parseFloat(formData.chargeTemperature) || 68;
+    
+    if (formData.chargeInputMethod === "weight") {
+      const weight = parseFloat(formData.chargeWeight) || 0;
+      // For distillation, weight is net weight (no tare weight)
+      if (weight > 0 && proof > 0) {
+        const calculated = calculateDerivedValuesFromWeight(0, weight, proof, temperature);
+        setChargeCalculated({
+          netWeightLbs: calculated.netWeightLbs,
+          wineGallons: calculated.wineGallons,
+          proofGallons: calculated.proofGallons,
+        });
+      } else {
+        setChargeCalculated({
+          netWeightLbs: weight || 0,
+          wineGallons: 0,
+          proofGallons: 0,
+        });
+      }
+    } else if (formData.chargeInputMethod === "wineGallons") {
+      const wineGallons = parseFloat(chargeWineGallonsInput) || 0;
+      if (wineGallons > 0 && proof > 0) {
+        const calculated = calculateDerivedValuesFromWineGallons(wineGallons, proof, 0, temperature);
+        setChargeCalculated({
+          netWeightLbs: calculated.netWeightLbs,
+          wineGallons: calculated.wineGallons,
+          proofGallons: calculated.proofGallons,
+        });
+      } else {
+        setChargeCalculated({
+          netWeightLbs: 0,
+          wineGallons: wineGallons || 0,
+          proofGallons: 0,
+        });
+      }
+    } else if (formData.chargeInputMethod === "proofGallons") {
+      const proofGallons = parseFloat(chargeProofGallonsInput) || 0;
+      if (proofGallons > 0 && proof > 0) {
+        const calculated = calculateDerivedValuesFromProofGallons(proofGallons, proof, 0, temperature);
+        setChargeCalculated({
+          netWeightLbs: calculated.netWeightLbs,
+          wineGallons: calculated.wineGallons,
+          proofGallons: calculated.proofGallons,
+        });
+      } else {
+        setChargeCalculated({
+          netWeightLbs: 0,
+          wineGallons: 0,
+          proofGallons: proofGallons || 0,
+        });
+      }
+    }
+  }, [formData.chargeInputMethod, formData.chargeWeight, formData.chargeProof, formData.chargeTemperature, chargeWineGallonsInput, chargeProofGallonsInput]);
+  
+  // Calculate yield values
+  useEffect(() => {
+    const proof = parseFloat(formData.yieldProof) || 0;
+    const temperature = parseFloat(formData.yieldTemperature) || 68;
+    
+    if (formData.yieldInputMethod === "weight") {
+      const weight = parseFloat(formData.yieldWeight) || 0;
+      // For distillation, weight is net weight (no tare weight)
+      if (weight > 0 && proof > 0) {
+        const calculated = calculateDerivedValuesFromWeight(0, weight, proof, temperature);
+        setYieldCalculated({
+          netWeightLbs: calculated.netWeightLbs,
+          wineGallons: calculated.wineGallons,
+          proofGallons: calculated.proofGallons,
+        });
+      } else {
+        setYieldCalculated({
+          netWeightLbs: weight || 0,
+          wineGallons: 0,
+          proofGallons: 0,
+        });
+      }
+    } else if (formData.yieldInputMethod === "wineGallons") {
+      const wineGallons = parseFloat(yieldWineGallonsInput) || 0;
+      if (wineGallons > 0 && proof > 0) {
+        const calculated = calculateDerivedValuesFromWineGallons(wineGallons, proof, 0, temperature);
+        setYieldCalculated({
+          netWeightLbs: calculated.netWeightLbs,
+          wineGallons: calculated.wineGallons,
+          proofGallons: calculated.proofGallons,
+        });
+      } else {
+        setYieldCalculated({
+          netWeightLbs: 0,
+          wineGallons: wineGallons || 0,
+          proofGallons: 0,
+        });
+      }
+    } else if (formData.yieldInputMethod === "proofGallons") {
+      const proofGallons = parseFloat(yieldProofGallonsInput) || 0;
+      if (proofGallons > 0 && proof > 0) {
+        const calculated = calculateDerivedValuesFromProofGallons(proofGallons, proof, 0, temperature);
+        setYieldCalculated({
+          netWeightLbs: calculated.netWeightLbs,
+          wineGallons: calculated.wineGallons,
+          proofGallons: calculated.proofGallons,
+        });
+      } else {
+        setYieldCalculated({
+          netWeightLbs: 0,
+          wineGallons: 0,
+          proofGallons: proofGallons || 0,
+        });
+      }
+    }
+  }, [formData.yieldInputMethod, formData.yieldWeight, formData.yieldProof, formData.yieldTemperature, yieldWineGallonsInput, yieldProofGallonsInput]);
+
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    if (name === "chargeWineGallonsInput") {
+      setChargeWineGallonsInput(value);
+    } else if (name === "chargeProofGallonsInput") {
+      setChargeProofGallonsInput(value);
+    } else if (name === "yieldWineGallonsInput") {
+      setYieldWineGallonsInput(value);
+    } else if (name === "yieldProofGallonsInput") {
+      setYieldProofGallonsInput(value);
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -67,7 +220,10 @@ export const AddEditDistillationModal = ({
       setFormError("Batch Name/ID is required");
       return;
     }
-
+    if (!formData.productId) {
+      setFormError("Product is required");
+      return;
+    }
     if (!formData.fermentationId) {
       setFormError("Source fermentation batch is required");
       return;
@@ -75,6 +231,31 @@ export const AddEditDistillationModal = ({
 
     if (!formData.storeYieldContainer) {
       setFormError("Yield container is required");
+      return;
+    }
+    if (!formData.yieldWeight) {
+      setFormError("Yield weight is required");
+      return;
+    }
+    if (!formData.yieldProof) {
+      setFormError("Yield proof is required");
+      return;
+    }
+    if (!formData.chargeWeight) {
+      setFormError("Charge weight is required");
+      return;
+    }
+    if (!formData.chargeProof) {
+      setFormError("Charge proof is required");
+      return;
+    }
+
+    const selectedContainer = containers.find(c => c.id === formData.storeYieldContainer);
+    console.log("selectedContainer:", selectedContainer);
+    console.log("formData:", formData);
+    const yieldVolumeGallons = formData.yieldWeight ? parseFloat(formData.yieldWeight) /calculateSpiritDensity(formData.yieldProof, formData.yieldTemperature) : 0;
+    if(yieldVolumeGallons > selectedContainer.containerKind?.capacityGallons) {
+      setFormError("Yield volume exceeds container capacity");
       return;
     }
 
@@ -98,7 +279,6 @@ export const AddEditDistillationModal = ({
         notes: formData.notes.trim() || null
       };
 
-      console.log("distillationData:", distillationData);
       // Call the onSave function passed from parent
       await onSave(distillationData);
       onClose();
@@ -215,22 +395,54 @@ export const AddEditDistillationModal = ({
             
             <div className="grid grid-cols-2 gap-4 mb-3">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
-                <input
-                  name="chargeWeight"
-                  type="number"
-                  step="0.001"
-                  value={formData.chargeWeight}
-                  onChange={handleChange}
-                  placeholder="Enter weight"
-                  className="w-full bg-gray-700 p-2 rounded"
-                />
+                {formData.chargeInputMethod === "weight" && (
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
+                )}
+                {formData.chargeInputMethod === "wineGallons" && (
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Wine Gallons</label>
+                )}
+                {formData.chargeInputMethod === "proofGallons" && (
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Proof Gallons</label>
+                )}
+                {formData.chargeInputMethod === "weight" && (
+                  <input
+                    name="chargeWeight"
+                    type="number"
+                    step="0.001"
+                    value={formData.chargeWeight}
+                    onChange={handleChange}
+                    placeholder="Enter weight"
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                )}
+                {formData.chargeInputMethod === "wineGallons" && (
+                  <input
+                    name="chargeWineGallonsInput"
+                    type="number"
+                    step="0.001"
+                    value={chargeWineGallonsInput}
+                    onChange={handleChange}
+                    placeholder="Enter wine gallons"
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                )}
+                {formData.chargeInputMethod === "proofGallons" && (
+                  <input
+                    name="chargeProofGallonsInput"
+                    type="number"
+                    step="0.001"
+                    value={chargeProofGallonsInput}
+                    onChange={handleChange}
+                    placeholder="Enter proof gallons"
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                )}
               </div>
               <div className="flex flex-col justify-end">
                 <div className="text-sm text-gray-400">
-                  <div>Net Weight: 0.00 lbs</div>
-                  <div>Wine Gallons: 0.00 gal</div>
-                  <div>Proof Gallons: 0.00 PG</div>
+                  <div>Net Weight: {chargeCalculated.netWeightLbs.toFixed(2)} lbs</div>
+                  <div>Wine Gallons: {chargeCalculated.wineGallons.toFixed(2)} gal</div>
+                  <div>Proof Gallons: {chargeCalculated.proofGallons.toFixed(2)} PG</div>
                 </div>
               </div>
             </div>
@@ -282,22 +494,54 @@ export const AddEditDistillationModal = ({
             
             <div className="grid grid-cols-2 gap-4 mb-3">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
-                <input
-                  name="yieldWeight"
-                  type="number"
-                  step="0.001"
-                  value={formData.yieldWeight}
-                  onChange={handleChange}
-                  placeholder="Enter weight"
-                  className="w-full bg-gray-700 p-2 rounded"
-                />
+                {formData.yieldInputMethod === "weight" && (
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
+                )}
+                {formData.yieldInputMethod === "wineGallons" && (
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Wine Gallons</label>
+                )}
+                {formData.yieldInputMethod === "proofGallons" && (
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Proof Gallons</label>
+                )}
+                {formData.yieldInputMethod === "weight" && (
+                  <input
+                    name="yieldWeight"
+                    type="number"
+                    step="0.001"
+                    value={formData.yieldWeight}
+                    onChange={handleChange}
+                    placeholder="Enter weight"
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                )}
+                {formData.yieldInputMethod === "wineGallons" && (
+                  <input
+                    name="yieldWineGallonsInput"
+                    type="number"
+                    step="0.001"
+                    value={yieldWineGallonsInput}
+                    onChange={handleChange}
+                    placeholder="Enter wine gallons"
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                )}
+                {formData.yieldInputMethod === "proofGallons" && (
+                  <input
+                    name="yieldProofGallonsInput"
+                    type="number"
+                    step="0.001"
+                    value={yieldProofGallonsInput}
+                    onChange={handleChange}
+                    placeholder="Enter proof gallons"
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                )}
               </div>
               <div className="flex flex-col justify-end">
                 <div className="text-sm text-gray-400">
-                  <div>Net Weight: 0.00 lbs</div>
-                  <div>Wine Gallons: 0.00 gal</div>
-                  <div>Proof Gallons: 0.00 PG</div>
+                  <div>Net Weight: {yieldCalculated.netWeightLbs.toFixed(2)} lbs</div>
+                  <div>Wine Gallons: {yieldCalculated.wineGallons.toFixed(2)} gal</div>
+                  <div>Proof Gallons: {yieldCalculated.proofGallons.toFixed(2)} PG</div>
                 </div>
               </div>
             </div>

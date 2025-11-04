@@ -49,8 +49,9 @@ export const ProofDownModal = ({
         setCalculatedValues({
           addWater: addWater,
           finalWineGallons: finalWineGallons,
+          finalProofGallons: proofGallons,
           finalGrossWeight: finalGrossWeight,
-          finalProofGallons: proofGallons
+          finalNetWeightGallons: finalNetWeight / calculateSpiritDensity(targetProofNum)
         });
       } else {
         setCalculatedValues({
@@ -74,6 +75,11 @@ export const ProofDownModal = ({
 
     if (targetProofNum >= container.proof) {
       setFormError("Target proof must be lower than current proof.");
+      return;
+    }
+    if(calculatedValues.finalNetWeightGallons > container.containerKind?.capacityGallons)
+    {
+      setFormError(`Resulting volume (${calculatedValues.finalNetWeightGallons.toFixed(2)} gal) exceeds container capacity ( ${container.containerKind?.capacityGallons} gal).`);
       return;
     }
 
