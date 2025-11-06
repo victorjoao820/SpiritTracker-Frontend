@@ -417,6 +417,38 @@ export const distillationAPI = {
   }
 };
 
+export const transferInboundAPI = {
+  // Get all transfer inbound batches
+  getAll: async () => {
+    return apiRequest('/transfers/inbound');
+  },
+  // Get single transfer inbound
+  getById: async (id) => {
+    return apiRequest(`/transfers/inbound/${id}`);
+  },
+  // Create transfer inbound
+  create: async (transferInboundData) => {
+    return apiRequest('/transfers/inbound', {
+      method: 'POST',
+      body: JSON.stringify(transferInboundData),
+    });
+  },
+  // Update transfer inbound
+  update: async (id, transferInboundData) => {
+    return apiRequest(`/transfers/inbound/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(transferInboundData),
+    });
+  },
+  // Delete transfer inbound
+  delete: async (id) => {
+    return apiRequest(`/transfers/inbound/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+
 // Transactions API
 export const transactionsAPI = {
   // Get all transactions with pagination
