@@ -10,6 +10,7 @@ html {
   --bg-card: hsl(0, 0%, 99%);
 
   --bg-accent: hsl(202, 100%, 82%);     
+  --bg-readable:hsl(201, 37%, 81%);
   --bg-selected: hsl(216, 54%, 73%);
 
   --text-primary: #000000;
@@ -32,6 +33,7 @@ html.dark {
   --bg-card-hover: hsl(0, 0%, 14%);
   
   --bg-accent: hsl(171, 9%, 15%);
+  --bg-readable:hsl(170, 5%, 25%);
   --bg-selected: hsl(216, 54%, 73%);
 
   --bg-table: hsl(0, 0%, 9%);

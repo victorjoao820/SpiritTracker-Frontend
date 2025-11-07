@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { transferInboundAPI, containersAPI, containerKindsAPI, productsAPI } from '../../services/api';
+import CreatableSelect from 'react-select/creatable';
 
 // Format date for datetime-local input
 const formatDateTimeLocal = (date) => {
@@ -29,7 +30,6 @@ const TransferInBoundView = () => {
 
   // DSP options (can be customized)
   const dspOptions = [
-    { value: '', label: '-- Select DSP --' },
     { value: 'DSP-001', label: 'DSP-001' },
     { value: 'DSP-002', label: 'DSP-002' },
     { value: 'DSP-003', label: 'DSP-003' },
@@ -38,7 +38,6 @@ const TransferInBoundView = () => {
 
   // Reason options
   const reasonOptions = [
-    { value: '', label: '-- Select Reason --' },
     { value: 'PRODUCTION', label: 'Production' },
     { value: 'AGING', label: 'Aging' },
     { value: 'BLENDING', label: 'Blending' },
@@ -85,6 +84,10 @@ const TransferInBoundView = () => {
   const [emptyContainers, setEmptyContainers] = useState([]);
   const [containerKinds, setContainerKinds] = useState([]);
   const [products, setProducts] = useState([]);
+  const [focusedField, setFocusedField] = useState(null);
+  const [focusedCountInput, setFocusedCountInput] = useState(null);
+  const dspSelectRef = useRef(null);
+  const [dspMenuOpen, setDspMenuOpen] = useState(false);
 
   const fetchTransferInbound = useCallback(async () => {
     try {
@@ -395,313 +398,457 @@ const TransferInBoundView = () => {
         <div className="bg-red-700 p-4 rounded-lg text-white">{error}</div>
       )}
 
-      {/* Editable Table */}
-      <div className="rounded-lg border overflow-hidden transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
+      {/* Main Content Layout: Form Fields on Left, Container Selection on Right */}
+      <div className="grid grid-cols-3 gap-6">
+        {/* Left Side: Form Fields */}
+        <div className="col-span-1 space-y-4">
+          <div className="rounded-lg border p-4 transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+            <h4 className="text-md font-semibold mb-4 transition-colors" style={{ color: 'var(--text-primary)' }}>
+              Transfer Information
+            </h4>
+            
+            {/* Form Fields arranged in single column */}
+            <div className="space-y-4">
+              {/* TIB In Number */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
                   TIB In Number
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Spirit Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  From DSP
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Total Gallons
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Reason
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Total Spirit Cost
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Shipping Cost
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Seal Number
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                  Transfer Date
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-              <tr className="transition-colors hover:opacity-80" style={{ borderColor: 'var(--border-color)' }}>
-                {/* TIB In Number */}
-                <td className="px-6 py-4">
-                  <input
-                    type="text"
-                    value={rowData.tibInNumber}
-                    onChange={(e) => handleCellChange('tibInNumber', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="Enter TIB In Number"
-                  />
-                </td>
-                
-                {/* Spirit Type */}
-                <td className="px-6 py-4">
-                  <select
-                    value={rowData.spiritType}
-                    onChange={(e) => handleCellChange('spiritType', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Select Spirit Type --</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                
-                {/* From DSP */}
-                <td className="px-6 py-4">
-                  <select
-                    value={rowData.fromDSP}
-                    onChange={(e) => handleCellChange('fromDSP', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  >
-                    {dspOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                
-                {/* Total Gallons */}
-                <td className="px-6 py-4">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={rowData.totalGallons}
-                    onChange={(e) => handleTotalGallonsChange(e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="0.00"
-                  />
-                </td>
-                
-                {/* Reason */}
-                <td className="px-6 py-4">
-                  <select
-                    value={rowData.reason}
-                    onChange={(e) => handleCellChange('reason', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  >
-                    {reasonOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                
-                {/* Total Spirit Cost */}
-                <td className="px-6 py-4">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={rowData.totalSpiritCost}
-                    onChange={(e) => handleCellChange('totalSpiritCost', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="0.00"
-                  />
-                </td>
-                
-                {/* Shipping Cost */}
-                <td className="px-6 py-4">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={rowData.shippingCost}
-                    onChange={(e) => handleCellChange('shippingCost', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="0.00"
-                  />
-                </td>
-                
-                {/* Seal Number */}
-                <td className="px-6 py-4">
-                  <input
-                    type="text"
-                    value={rowData.sealNumber}
-                    onChange={(e) => handleCellChange('sealNumber', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="Enter seal number"
-                  />
-                </td>
-                
-                {/* Transfer Date */}
-                <td className="px-6 py-4">
-                  <input
-                    type="datetime-local"
-                    value={rowData.transferDate}
-                    onChange={(e) => handleCellChange('transferDate', e.target.value)}
-                    className="w-full bg-gray-700 p-2 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Container Selection Section */}
-      <div className="rounded-lg border p-4 transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-        <h4 className="text-md font-semibold mb-4 transition-colors" style={{ color: 'var(--text-primary)' }}>
-          Container Selection
-        </h4>
-        
-        {/* Two columns side by side */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Use New Section */}
-          <div className="border rounded p-4 transition-colors" style={{ borderColor: 'var(--border-color)' }}>
-            <label className="flex items-center gap-2 cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                checked={useNew}
-                onChange={(e) => handleUseNewChange(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
-                Use New
-              </span>
-            </label>
-
-            {/* Use New - Table */}
-            {useNew ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
-                    <tr>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Select</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Type</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Capacity Gallons</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Count</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Total</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Name</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                    {newContainerTypes.map((containerType) => {
-                      const kind = containerKinds.find(ck => 
-                        ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
-                        ck.type === containerType.type
-                      );
-                      const capacity = parseFloat(kind?.capacityGallons || 0) || 0;
-                      const count = parseInt(newContainerCounts[containerType.name] || 0, 10) || 0;
-                      const total = capacity * count;
-                      const checked = selectedNewContainers[containerType.name] || false;
-                      const name = newContainerNames[containerType.name] || '';
-                      return (
-                        <tr key={containerType.name} className="transition-colors">
-                          <td className="px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => handleNewContainerToggle(containerType.name)}
-                              className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{containerType.type}</td>
-                          <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{capacity || 0}</td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={count}
-                              onChange={(e) => handleNewContainerCountChange(containerType.name, e.target.value)}
-                              className="w-20 bg-gray-700 p-1 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none"
-                              disabled={!checked}
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{total.toFixed(2)}</td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="text"
-                              value={name}
-                              onChange={(e) => handleNewContainerNameChange(containerType.name, e.target.value)}
-                              className="w-full bg-gray-700 p-1 rounded text-gray-100 border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
-                              placeholder="Enter name"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                </label>
+                <input
+                  type="text"
+                  value={rowData.tibInNumber}
+                  onChange={(e) => handleCellChange('tibInNumber', e.target.value)}
+                  onFocus={() => setFocusedField('tibInNumber')}
+                  onBlur={() => setFocusedField(null)}
+                  className="w-full p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  style={{ backgroundColor: focusedField === 'tibInNumber' ? 'var(--bg-accent)' : 'var(--bg-readable)' , color:'var(--text-primary)'}}
+                  placeholder="Enter TIB In Number"
+                />
               </div>
-            ) : (
-              <p className="text-sm text-gray-400">Enable "Use New" to select new container types</p>
-            )}
+              
+              {/* Spirit Type */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Spirit Type
+                </label>
+                <select
+                  value={rowData.spiritType || ''}
+                  onChange={(e) => handleCellChange('spiritType', e.target.value)}
+                  onMouseDown={(e) => {
+                    if (!rowData.spiritType) {
+                      const placeholder = e.target.querySelector('option[value=""]');
+                      if (placeholder) placeholder.style.display = 'none';
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (!rowData.spiritType) {
+                      const placeholder = e.target.querySelector('option[value=""]');
+                      if (placeholder) placeholder.style.display = '';
+                    }
+                  }}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                >
+                  {!rowData.spiritType && <option value="" disabled>-- Select Spirit Type --</option>}
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* From DSP */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  From DSP
+                </label>
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <CreatableSelect
+                      ref={dspSelectRef}
+                      value={rowData.fromDSP ? { value: rowData.fromDSP, label: rowData.fromDSP } : null}
+                      onChange={(selectedOption) => {
+                        handleCellChange('fromDSP', selectedOption ? selectedOption.value : '');
+                        setDspMenuOpen(false);
+                      }}
+                      onCreateOption={(inputValue) => {
+                        handleCellChange('fromDSP', inputValue);
+                        setDspMenuOpen(false);
+                      }}
+                      options={dspOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                      isClearable
+                      isSearchable
+                      isCreatable={rowData.fromDSP === 'OTHER'}
+                      placeholder="-- Select DSP --"
+                      formatCreateLabel={(inputValue) => `Create "${inputValue}"`}
+                      menuIsOpen={dspMenuOpen}
+                      onMenuOpen={() => setDspMenuOpen(true)}
+                      onMenuClose={() => setDspMenuOpen(false)}
+                      styles={{
+                        control: (base, state) => ({
+                          ...base,
+                          backgroundColor: 'var(--bg-accent)',
+                          borderColor: state.isFocused ? '#3b82f6' : 'var(--border-color)',
+                          color: rowData.fromDSP === 'OTHER' ? 'var(--text-secondary)' : 'var(--text-primary)',
+                          opacity: rowData.fromDSP === 'OTHER' ? 0.6 : 1,
+                          minHeight: '42px',
+                          '&:hover': {
+                            borderColor: state.isFocused ? '#3b82f6' : 'var(--border-color)',
+                          },
+                        }),
+                        singleValue: (base) => ({
+                          ...base,
+                          color: rowData.fromDSP === 'OTHER' ? 'var(--text-secondary)' : 'var(--text-primary)',
+                          opacity: rowData.fromDSP === 'OTHER' ? 0.6 : 1,
+                        }),
+                        input: (base) => ({
+                          ...base,
+                          color: 'var(--text-primary)',
+                        }),
+                        placeholder: (base) => ({
+                          ...base,
+                          color: 'var(--text-secondary)',
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          backgroundColor: 'var(--bg-card)',
+                          zIndex: 9999,
+                        }),
+                        option: (base, state) => ({
+                          ...base,
+                          backgroundColor: state.isSelected
+                            ? 'var(--bg-selected)'
+                            : state.isFocused
+                            ? 'var(--hover-bg)'
+                            : 'var(--bg-card)',
+                          color: state.isSelected && state.data.value === 'OTHER' 
+                            ? 'var(--text-secondary)' 
+                            : 'var(--text-primary)',
+                          opacity: state.isSelected && state.data.value === 'OTHER' ? 0.6 : 1,
+                          '&:hover': {
+                            backgroundColor: 'var(--hover-bg)',
+                          },
+                        }),
+                      }}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+                  {rowData.fromDSP === 'OTHER' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Open the menu to allow typing/editing
+                        setDspMenuOpen(true);
+                        // Focus the select input after menu opens
+                        setTimeout(() => {
+                          if (dspSelectRef.current) {
+                            dspSelectRef.current.focus();
+                          }
+                        }, 100);
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
+                      style={{ minWidth: '40px', height: '42px' }}
+                      title="Click to edit"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Total Gallons */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Total Gallons
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rowData.totalGallons}
+                  onChange={(e) => handleTotalGallonsChange(e.target.value)}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="0.00"
+                />
+              </div>
+              
+              {/* Reason */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Reason
+                </label>
+                <select
+                  value={rowData.reason || ''}
+                  onChange={(e) => handleCellChange('reason', e.target.value)}
+                  onMouseDown={(e) => {
+                    if (!rowData.reason) {
+                      const placeholder = e.target.querySelector('option[value=""]');
+                      if (placeholder) placeholder.style.display = 'none';
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (!rowData.reason) {
+                      const placeholder = e.target.querySelector('option[value=""]');
+                      if (placeholder) placeholder.style.display = '';
+                    }
+                  }}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                >
+                  {!rowData.reason && <option value="" disabled>-- Select Reason --</option>}
+                  {reasonOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Total Spirit Cost */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Total Spirit Cost
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rowData.totalSpiritCost}
+                  onChange={(e) => handleCellChange('totalSpiritCost', e.target.value)}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="0.00"
+                />
+              </div>
+              
+              {/* Shipping Cost */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Shipping Cost
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rowData.shippingCost}
+                  onChange={(e) => handleCellChange('shippingCost', e.target.value)}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="0.00"
+                />
+              </div>
+              
+              {/* Seal Number */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Seal Number
+                </label>
+                <input
+                  type="text"
+                  value={rowData.sealNumber}
+                  onChange={(e) => handleCellChange('sealNumber', e.target.value)}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="Enter seal number"
+                />
+              </div>
+              
+              {/* Transfer Date */}
+              <div>
+                <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                  Transfer Date
+                </label>
+                <input
+                  type="datetime-local"
+                  value={rowData.transferDate}
+                  onChange={(e) => handleCellChange('transferDate', e.target.value)}
+                  style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                  className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Use Old Section */}
-          <div className="border rounded p-4 transition-colors" style={{ borderColor: 'var(--border-color)' }}>
-            <label className="flex items-center gap-2 cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                checked={useOld}
-                onChange={(e) => handleUseOldChange(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
-                Use Old
-              </span>
-            </label>
+        {/* Right Side: Container Selection */}
+        <div className="col-span-2">
+          <div className="rounded-lg border p-4 transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+            <h4 className="text-md font-semibold mb-4 transition-colors" style={{ color: 'var(--text-primary)' }}>
+              Container Selection
+            </h4>
+            
+            {/* Use New Section - Top */}
+            <div className="mb-6">
+              <div className="border rounded p-4 transition-colors" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    checked={useNew}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleUseNewChange(e.target.checked);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
+                    Use New
+                  </span>
+                </div>
 
-            {/* Use Old - Table */}
-            {useOld ? (
-              <div className="overflow-x-auto">
-                {emptyContainers.length === 0 ? (
-                  <p className="text-sm text-gray-400">No empty containers available</p>
+                {/* Use New - Table */}
+                {useNew ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Select</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Type</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Capacity Gallons</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Count</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Total</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Name</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        {newContainerTypes.map((containerType) => {
+                          const kind = containerKinds.find(ck => 
+                            ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                            ck.type === containerType.type
+                          );
+                          const capacity = parseFloat(kind?.capacityGallons || 0) || 0;
+                          const count = parseInt(newContainerCounts[containerType.name] || 0, 10) || 0;
+                          const total = capacity * count;
+                          const checked = selectedNewContainers[containerType.name] || false;
+                          const name = newContainerNames[containerType.name] || '';
+                          return (
+                            <tr key={containerType.name} className="transition-colors">
+                              <td className="px-3 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => handleNewContainerToggle(containerType.name)}
+                                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{containerType.type}</td>
+                              <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{capacity || 0}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  placeholder='0'
+                                  value={focusedCountInput === containerType.name && count === 0 ? '' : count}
+                                  onChange={(e) => handleNewContainerCountChange(containerType.name, e.target.value)}
+                                  onFocus={() => {
+                                    setFocusedCountInput(containerType.name);
+                                    if (count === 0) {
+                                      handleNewContainerCountChange(containerType.name, '');
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    setFocusedCountInput(null);
+                                    if (e.target.value === '' || e.target.value === '0') {
+                                      handleNewContainerCountChange(containerType.name, '0');
+                                    }
+                                  }}
+                                  style={{ backgroundColor: checked ? 'var(--bg-accent)' : 'var(--bg-readable)' , color:'var(--text-primary)'}}
+                                  className="w-20 p-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                                  disabled={!checked}
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{Number(total)}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={name}
+                                  onChange={(e) => handleNewContainerNameChange(containerType.name, e.target.value)}
+                                  style={{ backgroundColor: checked ? 'var(--bg-accent)' : 'var(--bg-readable)' , color:'var(--text-primary)'}}
+                                  className="w-full p-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                                  placeholder="Enter name"
+                                  disabled={!checked}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
-                  <table className="w-full">
-                    <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Select</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Name</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Capacity Gallons</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Count</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                      {emptyContainers.map((container) => {
-                        const capacity = parseFloat(container.containerKind?.capacityGallons || 0) || 0;
-                        const isChecked = selectedOldContainers.includes(container.id);
-                        const count = isChecked ? 1 : 0;
-                        const total = capacity * count;
-                        return (
-                          <tr key={container.id} className="transition-colors">
-                            <td className="px-3 py-2">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleOldContainerToggle(container.id)}
-                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{container.name || 'Unnamed'}</td>
-                            <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{capacity || 0}</td>
-                            <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{count}</td>
-                            <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{total.toFixed(2)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <p className="text-sm text-gray-400">Enable "Use New" to select new container types</p>
                 )}
               </div>
-            ) : (
-              <p className="text-sm text-gray-400">Enable "Use Old" to select existing empty containers</p>
-            )}
+            </div>
+
+            {/* Use Old Section - Bottom */}
+            <div>
+              <div className="border rounded p-4 transition-colors" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    checked={useOld}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleUseOldChange(e.target.checked);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
+                    Use Old
+                  </span>
+                </div>
+
+                {/* Use Old - Table */}
+                {useOld ? (
+                  <div className="overflow-x-auto">
+                    {emptyContainers.length === 0 ? (
+                      <p className="text-sm text-gray-400">No empty containers available</p>
+                    ) : (
+                      <table className="w-full">
+                        <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Select</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Name</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Capacity Gallons</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Count</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          {emptyContainers.map((container) => {
+                            const capacity = parseFloat(container.containerKind?.capacityGallons || 0) || 0;
+                            const isChecked = selectedOldContainers.includes(container.id);
+                            const count = isChecked ? 1 : 0;
+                            const total = capacity * count;
+                            return (
+                              <tr key={container.id} className="transition-colors">
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleOldContainerToggle(container.id)}
+                                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                                  />
+                                </td>
+                                <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{container.name || 'Unnamed'}</td>
+                                <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{capacity || 0}</td>
+                                <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{count}</td>
+                                <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{total.toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">Enable "Use Old" to select existing empty containers</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
