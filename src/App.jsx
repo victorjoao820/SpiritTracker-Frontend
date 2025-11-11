@@ -18,6 +18,7 @@ import ProductTypeView from "./components/views/ProductTypeView";
 import ContainerTypeView from "./components/views/ContainerTypeView";
 import FermentersView from "./components/views/FermenterView";
 import TransferInBoundView from "./components/views/TransferInBoundView";
+import DSPView from "./components/views/DSPView";
 // import TransferOutboundView from "./components/views/TransferOutboundView";
 
 const ReportsView = () => (
@@ -149,6 +150,13 @@ function AppContent() {
         <ProtectedRoute>
           <AuthenticatedLayout>
             <FermentersView />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/settings/dspmanage" element={
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <DSPView />
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />

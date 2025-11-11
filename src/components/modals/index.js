@@ -2,6 +2,7 @@
 export { AddEditContainerModal } from './AddEditContainerModal';
 export { AddEditContainerTypeModal } from './AddEditContainerTypeModal';
 export { AddEditProductModal } from './AddEditProductModal';
+export { AddEditDSPModal } from './AddEditDSPModal';
 export { AddEditFermenterModal } from './AddEditFermenterModal';
 export { AddEditFermentationModal } from './AddEditFermentationModal';
 export { AddEditDistillationModal } from './AddEditDistillationModal';

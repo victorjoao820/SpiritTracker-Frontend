@@ -207,6 +207,42 @@ export const productsAPI = {
   }
 };
 
+// DSPs API
+export const dspsAPI = {
+  // Get all DSPs
+  getAll: async () => {
+    return apiRequest('/dsps');
+  },
+
+  // Get single DSP
+  getById: async (id) => {
+    return apiRequest(`/dsps/${id}`);
+  },
+
+  // Create DSP
+  create: async (dspData) => {
+    return apiRequest('/dsps', {
+      method: 'POST',
+      body: JSON.stringify(dspData),
+    });
+  },
+
+  // Update DSP
+  update: async (id, dspData) => {
+    return apiRequest(`/dsps/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dspData),
+    });
+  },
+
+  // Delete DSP
+  delete: async (id) => {
+    return apiRequest(`/dsps/${id}`, {
+      method: 'DELETE',
+    });
+  }
+};
+
 // Fermenters API
 export const fermentersAPI = {
   // Get all fermenters

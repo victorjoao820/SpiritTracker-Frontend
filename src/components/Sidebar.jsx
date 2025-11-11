@@ -53,6 +53,7 @@ const Sidebar = () => {
         { id: 'settings-producttype', label: 'Product Type', path: '/settings/producttype' },
         { id: 'settings-containertype', label: 'Container Type', path: '/settings/containertype' },
         { id: 'settings-fermenters', label: 'Fermenters', path: '/settings/fermenters' },
+        { id: 'settings-DSP', label: 'DSP manage', path: '/settings/dspmanage' },
       ]
     },
   ];

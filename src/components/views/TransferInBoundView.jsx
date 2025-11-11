@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { transferInboundAPI, containersAPI, containerKindsAPI, productsAPI } from '../../services/api';
-import CreatableSelect from 'react-select/creatable';
 
 // Format date for datetime-local input
 const formatDateTimeLocal = (date) => {
@@ -86,8 +85,6 @@ const TransferInBoundView = () => {
   const [products, setProducts] = useState([]);
   const [focusedField, setFocusedField] = useState(null);
   const [focusedCountInput, setFocusedCountInput] = useState(null);
-  const dspSelectRef = useRef(null);
-  const [dspMenuOpen, setDspMenuOpen] = useState(false);
 
   const fetchTransferInbound = useCallback(async () => {
     try {
@@ -463,99 +460,54 @@ const TransferInBoundView = () => {
                 <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
                   From DSP
                 </label>
-                <div className="flex gap-2 items-center">
-                  <div className="flex-1">
-                    <CreatableSelect
-                      ref={dspSelectRef}
-                      value={rowData.fromDSP ? { value: rowData.fromDSP, label: rowData.fromDSP } : null}
-                      onChange={(selectedOption) => {
-                        handleCellChange('fromDSP', selectedOption ? selectedOption.value : '');
-                        setDspMenuOpen(false);
-                      }}
-                      onCreateOption={(inputValue) => {
-                        handleCellChange('fromDSP', inputValue);
-                        setDspMenuOpen(false);
-                      }}
-                      options={dspOptions.map(opt => ({ value: opt.value, label: opt.label }))}
-                      isClearable
-                      isSearchable
-                      isCreatable={rowData.fromDSP === 'OTHER'}
-                      placeholder="-- Select DSP --"
-                      formatCreateLabel={(inputValue) => `Create "${inputValue}"`}
-                      menuIsOpen={dspMenuOpen}
-                      onMenuOpen={() => setDspMenuOpen(true)}
-                      onMenuClose={() => setDspMenuOpen(false)}
-                      styles={{
-                        control: (base, state) => ({
-                          ...base,
-                          backgroundColor: 'var(--bg-accent)',
-                          borderColor: state.isFocused ? '#3b82f6' : 'var(--border-color)',
-                          color: rowData.fromDSP === 'OTHER' ? 'var(--text-secondary)' : 'var(--text-primary)',
-                          opacity: rowData.fromDSP === 'OTHER' ? 0.6 : 1,
-                          minHeight: '42px',
-                          '&:hover': {
-                            borderColor: state.isFocused ? '#3b82f6' : 'var(--border-color)',
-                          },
-                        }),
-                        singleValue: (base) => ({
-                          ...base,
-                          color: rowData.fromDSP === 'OTHER' ? 'var(--text-secondary)' : 'var(--text-primary)',
-                          opacity: rowData.fromDSP === 'OTHER' ? 0.6 : 1,
-                        }),
-                        input: (base) => ({
-                          ...base,
-                          color: 'var(--text-primary)',
-                        }),
-                        placeholder: (base) => ({
-                          ...base,
-                          color: 'var(--text-secondary)',
-                        }),
-                        menu: (base) => ({
-                          ...base,
-                          backgroundColor: 'var(--bg-card)',
-                          zIndex: 9999,
-                        }),
-                        option: (base, state) => ({
-                          ...base,
-                          backgroundColor: state.isSelected
-                            ? 'var(--bg-selected)'
-                            : state.isFocused
-                            ? 'var(--hover-bg)'
-                            : 'var(--bg-card)',
-                          color: state.isSelected && state.data.value === 'OTHER' 
-                            ? 'var(--text-secondary)' 
-                            : 'var(--text-primary)',
-                          opacity: state.isSelected && state.data.value === 'OTHER' ? 0.6 : 1,
-                          '&:hover': {
-                            backgroundColor: 'var(--hover-bg)',
-                          },
-                        }),
-                      }}
-                      className="react-select-container"
-                      classNamePrefix="react-select"
+                {rowData.fromDSP === 'OTHER' || (rowData.fromDSP && !dspOptions.find(opt => opt.value === rowData.fromDSP)) ? (
+                  <div>
+                    <input
+                      type="text"
+                      value={rowData.fromDSP === 'OTHER' ? '' : rowData.fromDSP}
+                      onChange={(e) => handleCellChange('fromDSP', e.target.value)}
+                      onFocus={() => setFocusedField('fromDSP')}
+                      onBlur={() => setFocusedField(null)}
+                      style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                      className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder="Enter custom DSP"
                     />
-                  </div>
-                  {rowData.fromDSP === 'OTHER' && (
                     <button
                       type="button"
-                      onClick={() => {
-                        // Open the menu to allow typing/editing
-                        setDspMenuOpen(true);
-                        // Focus the select input after menu opens
-                        setTimeout(() => {
-                          if (dspSelectRef.current) {
-                            dspSelectRef.current.focus();
-                          }
-                        }, 100);
-                      }}
-                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
-                      style={{ minWidth: '40px', height: '42px' }}
-                      title="Click to edit"
+                      onClick={() => handleCellChange('fromDSP', '')}
+                      className="mt-2 px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none text-sm"
+                      title="Back to select"
                     >
-                      +
+                      +New DSP
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <select
+                    value={rowData.fromDSP || ''}
+                    onChange={(e) => handleCellChange('fromDSP', e.target.value)}
+                    onMouseDown={(e) => {
+                      if (!rowData.fromDSP) {
+                        const placeholder = e.target.querySelector('option[value=""]');
+                        if (placeholder) placeholder.style.display = 'none';
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (!rowData.fromDSP) {
+                        const placeholder = e.target.querySelector('option[value=""]');
+                        if (placeholder) placeholder.style.display = '';
+                      }
+                    }}
+                    style={{ backgroundColor: 'var(--bg-accent)' , color:'var(--text-primary)'}}
+                    className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  >
+                    {!rowData.fromDSP && <option value="" disabled>-- Select DSP --</option>}
+                    {dspOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               
               {/* Total Gallons */}
