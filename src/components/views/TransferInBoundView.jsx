@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { transferInboundAPI, containersAPI, containerKindsAPI, productsAPI } from '../../services/api';
+import { transferInboundAPI, containersAPI, containerKindsAPI, productsAPI, dspsAPI } from '../../services/api';
+import { AddEditDSPModal } from '../modals';
 
 // Format date for datetime-local input
 const formatDateTimeLocal = (date) => {
@@ -27,14 +28,6 @@ const newContainerTypes = [
 
 const TransferInBoundView = () => {
 
-  // DSP options (can be customized)
-  const dspOptions = [
-    { value: 'DSP-001', label: 'DSP-001' },
-    { value: 'DSP-002', label: 'DSP-002' },
-    { value: 'DSP-003', label: 'DSP-003' },
-    { value: 'OTHER', label: 'Other' },
-  ];
-
   // Reason options
   const reasonOptions = [
     { value: 'PRODUCTION', label: 'Production' },
@@ -59,6 +52,7 @@ const TransferInBoundView = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   // Container selection state
@@ -83,8 +77,10 @@ const TransferInBoundView = () => {
   const [emptyContainers, setEmptyContainers] = useState([]);
   const [containerKinds, setContainerKinds] = useState([]);
   const [products, setProducts] = useState([]);
+  const [dsps, setDsps] = useState([]);
   const [focusedField, setFocusedField] = useState(null);
   const [focusedCountInput, setFocusedCountInput] = useState(null);
+  const [showDSPModal, setShowDSPModal] = useState(false);
 
   const fetchTransferInbound = useCallback(async () => {
     try {
@@ -98,17 +94,24 @@ const TransferInBoundView = () => {
       // If there's existing data, load the first one
       if (transfers && Array.isArray(transfers) && transfers.length > 0) {
         const transfer = transfers[0];
+        const totalGallonsValue = transfer.volumeGallons?.toString() || '';
         setRowData({
           tibInNumber: transfer.transferNumber || (nextTransferNumber ? nextTransferNumber.toString() : '1'),
           spiritType: transfer.productId?.toString() || '',
           fromDSP: transfer.destination || '',
-          totalGallons: transfer.volumeGallons?.toString() || '',
+          totalGallons: totalGallonsValue,
           reason: transfer.notes || '',
           totalSpiritCost: '', // Not in model yet
           shippingCost: transfer.carrier || '',
           sealNumber: transfer.sealNumber || '',
           transferDate: transfer.transferDate ? formatDateTimeLocal(new Date(transfer.transferDate)) : getTodayDateTime(),
         });
+        // Set baseTotalGallons when loading data
+        if (totalGallonsValue) {
+          setBaseTotalGallons(totalGallonsValue);
+        }
+        // Reset lost gallons when loading new data
+        setLostGallons(0);
       } else {
         // If no existing data, set the auto-generated TIB In Number
         setRowData(prev => ({
@@ -142,6 +145,32 @@ const TransferInBoundView = () => {
     fetchProducts();
   }, []);
 
+  // Fetch DSPs function
+  const fetchDSPs = useCallback(async () => {
+    try {
+      const dspsData = await dspsAPI.getAll();
+      setDsps(dspsData || []);
+    } catch (err) {
+      console.error('Error fetching DSPs:', err);
+    }
+  }, []);
+
+  // Fetch DSPs on component mount
+  useEffect(() => {
+    fetchDSPs();
+  }, [fetchDSPs]);
+
+  // Handle new DSP creation
+  const handleNewDSPCreated = async (newDSP) => {
+    // Refresh DSPs list
+    await fetchDSPs();
+    // Set the newly created DSP as the selected value
+    if (newDSP && newDSP.name) {
+      handleCellChange('fromDSP', newDSP.name);
+    }
+    setShowDSPModal(false);
+  };
+
   // Fetch empty containers and container kinds when needed
   useEffect(() => {
     const fetchContainerData = async () => {
@@ -171,6 +200,8 @@ const TransferInBoundView = () => {
   // Store original total gallons for calculation (before reduction)
   const [baseTotalGallons, setBaseTotalGallons] = useState('');
   const isUpdatingFromCalculation = useRef(false);
+  // Track lost gallons amount (when remaining is saved as lost)
+  const [lostGallons, setLostGallons] = useState(0);
 
   // Track when totalGallons is manually changed - store as base value
   const handleTotalGallonsChange = (value) => {
@@ -179,23 +210,17 @@ const TransferInBoundView = () => {
     handleCellChange('totalGallons', value);
   };
 
-  // Calculate total volume reduction from selected containers
-  useEffect(() => {
-    // Skip if we're updating from calculation or no base value
-    if (isUpdatingFromCalculation.current) {
-      return;
+  // Helper function to calculate remaining gallons (baseTotalGallons minus allocated minus lost)
+  const getRemainingGallons = useCallback(() => {
+    const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+    if (baseTotal <= 0) {
+      return 0;
     }
-
-    // Use baseTotalGallons if set, otherwise use current rowData.totalGallons as base
-    const currentBase = baseTotalGallons || rowData.totalGallons;
-    if (!currentBase) {
-      return;
-    }
-
-    let totalReduction = 0;
     
+    let remaining = baseTotal;
+    
+    // Process new containers first
     if (useNew) {
-      // Calculate reduction from selected new container types with counts
       Object.entries(selectedNewContainers).forEach(([name, isSelected]) => {
         if (isSelected) {
           const count = parseInt(newContainerCounts[name] || 0, 10) || 0;
@@ -207,7 +232,54 @@ const TransferInBoundView = () => {
                 ck.type === containerType.type
               );
               if (kind && kind.capacityGallons) {
-                totalReduction += (parseFloat(kind.capacityGallons) || 0) * count;
+                const capacity = parseFloat(kind.capacityGallons) || 0;
+                const totalCapacity = capacity * count;
+                // Cap the allocation at remaining gallons
+                const cappedAllocation = Math.min(totalCapacity, remaining);
+                remaining = Math.max(0, remaining - cappedAllocation);
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Process old containers
+    if (useOld) {
+      selectedOldContainers.forEach(containerId => {
+        const container = emptyContainers.find(c => c.id === containerId);
+        if (container && container.containerKind?.capacityGallons) {
+          const capacity = parseFloat(container.containerKind.capacityGallons);
+          // Cap the allocation at remaining gallons
+          const cappedAllocation = Math.min(capacity, remaining);
+          remaining = Math.max(0, remaining - cappedAllocation);
+        }
+      });
+    }
+    
+    // Subtract lost gallons if any
+    remaining = Math.max(0, remaining - lostGallons);
+    
+    return remaining;
+  }, [baseTotalGallons, rowData.totalGallons, useNew, useOld, selectedNewContainers, newContainerCounts, selectedOldContainers, containerKinds, emptyContainers, lostGallons]);
+
+  // Helper function to calculate allocated gallons from other containers (excluding current container type)
+  const getAllocatedGallons = useCallback((excludeContainerType = null) => {
+    let allocated = 0;
+    
+    if (useNew) {
+      Object.entries(selectedNewContainers).forEach(([name, isSelected]) => {
+        if (isSelected && name !== excludeContainerType) {
+          const count = parseInt(newContainerCounts[name] || 0, 10) || 0;
+          if (count > 0) {
+            const containerType = newContainerTypes.find(ct => ct.name === name);
+            if (containerType) {
+              const kind = containerKinds.find(ck => 
+                ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                ck.type === containerType.type
+              );
+              if (kind && kind.capacityGallons) {
+                allocated += (parseFloat(kind.capacityGallons) || 0) * count;
               }
             }
           }
@@ -216,34 +288,28 @@ const TransferInBoundView = () => {
     }
     
     if (useOld) {
-      // Calculate reduction from selected old containers
       selectedOldContainers.forEach(containerId => {
         const container = emptyContainers.find(c => c.id === containerId);
         if (container && container.containerKind?.capacityGallons) {
-          totalReduction += parseFloat(container.containerKind.capacityGallons);
+          allocated += parseFloat(container.containerKind.capacityGallons);
         }
       });
     }
     
-    // Update Total Gallons by reducing from the base value
-    const baseTotal = parseFloat(currentBase) || 0;
-    if (baseTotal > 0 || totalReduction > 0) {
-      const reducedTotal = Math.max(0, baseTotal - totalReduction);
-      const currentTotal = parseFloat(rowData.totalGallons || 0);
-      // Only update if the value actually changed
-      if (Math.abs(currentTotal - reducedTotal) > 0.01) {
-        isUpdatingFromCalculation.current = true;
-        setRowData(prev => ({
-          ...prev,
-          totalGallons: reducedTotal.toString(),
-        }));
-        // Reset flag after update
-        setTimeout(() => {
-          isUpdatingFromCalculation.current = false;
-        }, 0);
+    return allocated;
+  }, [useNew, useOld, selectedNewContainers, newContainerCounts, selectedOldContainers, containerKinds, emptyContainers]);
+
+  // Set baseTotalGallons when rowData.totalGallons is loaded or changed manually
+  useEffect(() => {
+    // Only set baseTotalGallons if it's not already set or if totalGallons was manually changed
+    if (rowData.totalGallons && (!baseTotalGallons || isUpdatingFromCalculation.current === false)) {
+      // Only update if the value is different from current base
+      if (rowData.totalGallons !== baseTotalGallons) {
+        setBaseTotalGallons(rowData.totalGallons);
       }
     }
-  }, [selectedNewContainers, newContainerCounts, selectedOldContainers, useNew, useOld, containerKinds, emptyContainers, baseTotalGallons, rowData.totalGallons]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowData.totalGallons]);
 
   const handleCellChange = (field, value) => {
     setRowData(prev => ({
@@ -273,6 +339,15 @@ const TransferInBoundView = () => {
   };
 
   const handleNewContainerToggle = (containerName) => {
+    // Check if remaining gallons is 0 - if so, only allow unchecking
+    const remaining = getRemainingGallons();
+    const isCurrentlyChecked = selectedNewContainers[containerName];
+    
+    // If trying to check a new container but remaining is 0, prevent it
+    if (!isCurrentlyChecked && remaining <= 0) {
+      return; // Don't allow checking when remaining is 0
+    }
+    
     setSelectedNewContainers(prev => ({
       ...prev,
       [containerName]: !prev[containerName]
@@ -295,6 +370,15 @@ const TransferInBoundView = () => {
   };
 
   const handleOldContainerToggle = (containerId) => {
+    // Check if remaining gallons is 0 - if so, only allow unchecking
+    const remaining = getRemainingGallons();
+    const isCurrentlyChecked = selectedOldContainers.includes(containerId);
+    
+    // If trying to check a new container but remaining is 0, prevent it
+    if (!isCurrentlyChecked && remaining <= 0) {
+      return; // Don't allow checking when remaining is 0
+    }
+    
     setSelectedOldContainers(prev => {
       if (prev.includes(containerId)) {
         return prev.filter(id => id !== containerId);
@@ -308,23 +392,164 @@ const TransferInBoundView = () => {
     try {
       setIsSaving(true);
       setError('');
+      setSuccessMessage(''); // Clear previous success message
 
       // Validation
       if (!rowData.tibInNumber.trim()) {
         setError('TIB In Number is required');
+        setIsSaving(false);
         return;
       }
       if (!rowData.fromDSP) {
         setError('From DSP is required');
+        setIsSaving(false);
         return;
       }
       if (!rowData.totalGallons || parseFloat(rowData.totalGallons) <= 0) {
         setError('Total Gallons must be a valid number > 0');
+        setIsSaving(false);
         return;
       }
       if (!rowData.reason) {
         setError('Reason is required');
+        setIsSaving(false);
         return;
+      }
+
+      // Check remaining gallons - must be less than 5
+      const remainingGallons = getRemainingGallons();
+      let hasLostRemaining = false;
+      if (remainingGallons > 0 && remainingGallons < 5) {
+        const confirmMessage = `The remain spirit must lost. Remaining: ${remainingGallons.toFixed(2)} gallons. Do you want to continue?`;
+        const userConfirmed = window.confirm(confirmMessage);
+        if (!userConfirmed) {
+          setIsSaving(false);
+          return;
+        }
+        hasLostRemaining = true;
+      }
+
+      // Build container selection information for notes
+      const containerInfo = [];
+      
+      // New containers information
+      if (useNew) {
+        Object.entries(selectedNewContainers).forEach(([name, isSelected]) => {
+          if (isSelected) {
+            const count = parseInt(newContainerCounts[name] || 0, 10) || 0;
+            if (count > 0) {
+              const containerType = newContainerTypes.find(ct => ct.name === name);
+              const kind = containerKinds.find(ck => 
+                ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                ck.type === containerType.type
+              );
+              const capacity = parseFloat(kind?.capacityGallons || 0) || 0;
+              const containerName = newContainerNames[name] || '';
+              
+              // Calculate what was actually allocated (capped)
+              const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+              let remaining = baseTotal;
+              
+              // Process containers before this one to get remaining
+              const containerTypeIndex = newContainerTypes.findIndex(ct => ct.name === name);
+              for (let i = 0; i < containerTypeIndex; i++) {
+                const otherType = newContainerTypes[i];
+                const otherChecked = selectedNewContainers[otherType.name];
+                if (otherChecked) {
+                  const otherCount = parseInt(newContainerCounts[otherType.name] || 0, 10) || 0;
+                  if (otherCount > 0) {
+                    const otherKind = containerKinds.find(ck => 
+                      ck.name.toLowerCase().includes(otherType.name.toLowerCase()) ||
+                      ck.type === otherType.type
+                    );
+                    if (otherKind && otherKind.capacityGallons) {
+                      const otherCapacity = parseFloat(otherKind.capacityGallons) || 0;
+                      const otherTotal = otherCapacity * otherCount;
+                      const cappedOther = Math.min(otherTotal, remaining);
+                      remaining = Math.max(0, remaining - cappedOther);
+                    }
+                  }
+                }
+              }
+              
+              const theoreticalTotal = capacity * count;
+              const allocatedTotal = Math.min(theoreticalTotal, remaining);
+              
+              let containerDetail = `New ${containerType.type}: ${count} x ${capacity}gal = ${allocatedTotal.toFixed(2)}gal`;
+              if (containerName) {
+                containerDetail += ` (${containerName})`;
+              }
+              if (theoreticalTotal > remaining && remaining > 0) {
+                const fullContainers = Math.floor(remaining / capacity);
+                const partialAmount = remaining % capacity;
+                if (partialAmount > 0.01) {
+                  containerDetail += ` [Partial: ${fullContainers} full, One: ${partialAmount.toFixed(2)}gal]`;
+                }
+              }
+              containerInfo.push(containerDetail);
+            }
+          }
+        });
+      }
+      
+      // Old containers information
+      if (useOld && selectedOldContainers.length > 0) {
+        const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+        let remaining = baseTotal;
+        
+        // Process new containers first
+        if (useNew) {
+          Object.entries(selectedNewContainers).forEach(([name, isSelected]) => {
+            if (isSelected) {
+              const count = parseInt(newContainerCounts[name] || 0, 10) || 0;
+              if (count > 0) {
+                const containerType = newContainerTypes.find(ct => ct.name === name);
+                const kind = containerKinds.find(ck => 
+                  ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                  ck.type === containerType.type
+                );
+                if (kind && kind.capacityGallons) {
+                  const capacity = parseFloat(kind.capacityGallons) || 0;
+                  const total = capacity * count;
+                  const capped = Math.min(total, remaining);
+                  remaining = Math.max(0, remaining - capped);
+                }
+              }
+            }
+          });
+        }
+        
+        // Process old containers
+        selectedOldContainers.forEach(containerId => {
+          const container = emptyContainers.find(c => c.id === containerId);
+          if (container) {
+            const capacity = parseFloat(container.containerKind?.capacityGallons || 0) || 0;
+            const allocated = Math.min(capacity, remaining);
+            const containerName = container.name || 'Unnamed';
+            let containerDetail = `Old Container: ${containerName} (${allocated.toFixed(2)}gal`;
+            if (capacity > remaining && remaining > 0) {
+              containerDetail += `, Partial: ${remaining.toFixed(2)}gal`;
+            }
+            containerDetail += ')';
+            containerInfo.push(containerDetail);
+            remaining = Math.max(0, remaining - allocated);
+          }
+        });
+      }
+      
+      // Build notes with reason, cost, and container info
+      let notes = rowData.reason;
+      if (rowData.totalSpiritCost) {
+        notes += ` | Total Spirit Cost: ${rowData.totalSpiritCost}`;
+      }
+      if (containerInfo.length > 0) {
+        notes += ` | Containers: ${containerInfo.join('; ')}`;
+      }
+      if (hasLostRemaining) {
+        // If saved with lost remaining, mark it as lost and remaining should be 0
+        notes += ` | Lost: ${remainingGallons.toFixed(2)}gal`;
+      } else if (remainingGallons > 0) {
+        notes += ` | Remaining: ${remainingGallons.toFixed(2)}gal`;
       }
 
       const transferData = {
@@ -337,25 +562,50 @@ const TransferInBoundView = () => {
         transferDate: new Date(rowData.transferDate).toISOString(),
         sealNumber: rowData.sealNumber || null,
         carrier: rowData.shippingCost || null, // Using carrier field for shipping cost temporarily
-        notes: `${rowData.reason}${rowData.totalSpiritCost ? ` | Total Spirit Cost: ${rowData.totalSpiritCost}` : ''}`,
+        notes: notes,
         status: 'PENDING'
       };
 
-      // Check if we have existing data to update or need to create
-      const existingTransfers = await transferInboundAPI.getAll();
-      if (existingTransfers && existingTransfers.length > 0) {
-        // Update existing
-        await transferInboundAPI.update(existingTransfers[0].id, transferData);
+      // Check if a transfer with the same TIB number already exists
+      const existingTransfersResponse = await transferInboundAPI.getAll();
+      const existingTransfers = existingTransfersResponse?.transfers || existingTransfersResponse || [];
+      const existingTransfer = Array.isArray(existingTransfers) 
+        ? existingTransfers.find(t => t.transferNumber === rowData.tibInNumber)
+        : null;
+
+      let wasUpdated = false;
+      if (existingTransfer) {
+        // Update existing transfer with the same TIB number
+        await transferInboundAPI.update(existingTransfer.id, transferData);
+        wasUpdated = true;
       } else {
-        // Create new
+        // Create new transfer
         await transferInboundAPI.create(transferData);
+        wasUpdated = false;
+      }
+
+      // If saved with lost remaining, set lost gallons so remaining shows as 0
+      if (hasLostRemaining) {
+        // Set lost gallons to make remaining display as 0
+        setLostGallons(remainingGallons);
       }
 
       setError('');
-      // Optionally show success message
+      // Show success message
+      if (wasUpdated) {
+        setSuccessMessage(`Transfer TIB-${rowData.tibInNumber} has been updated successfully.`);
+      } else {
+        setSuccessMessage(`Transfer TIB-${rowData.tibInNumber} has been created successfully.`);
+      }
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
     } catch (err) {
       console.error('Error saving transfer inbound:', err);
       setError(err.response?.data?.error || 'Failed to save transfer inbound data.');
+      setSuccessMessage(''); // Clear success message on error
     } finally {
       setIsSaving(false);
     }
@@ -393,6 +643,11 @@ const TransferInBoundView = () => {
       {/* Error Message */}
       {error && (
         <div className="bg-red-700 p-4 rounded-lg text-white">{error}</div>
+      )}
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="bg-green-700 p-4 rounded-lg text-white">{successMessage}</div>
       )}
 
       {/* Main Content Layout: Form Fields on Left, Container Selection on Right */}
@@ -460,7 +715,7 @@ const TransferInBoundView = () => {
                 <label className="block text-sm font-medium mb-1 transition-colors" style={{ color: 'var(--text-secondary)' }}>
                   From DSP
                 </label>
-                {rowData.fromDSP === 'OTHER' || (rowData.fromDSP && !dspOptions.find(opt => opt.value === rowData.fromDSP)) ? (
+                {rowData.fromDSP === 'OTHER' || (rowData.fromDSP && !dsps.find(dsp => dsp.name === rowData.fromDSP)) ? (
                   <div>
                     <input
                       type="text"
@@ -474,9 +729,9 @@ const TransferInBoundView = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => handleCellChange('fromDSP', '')}
-                      className="mt-2 px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none text-sm"
-                      title="Back to select"
+                      onClick={() => setShowDSPModal(true)}
+                      className="mt-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none text-sm"
+                      title="Add new DSP"
                     >
                       +New DSP
                     </button>
@@ -501,11 +756,12 @@ const TransferInBoundView = () => {
                     className="w-full bg-accent p-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
                   >
                     {!rowData.fromDSP && <option value="" disabled>-- Select DSP --</option>}
-                    {dspOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                    {dsps.map((dsp) => (
+                      <option key={dsp.id} value={dsp.name}>
+                        {dsp.name}
                       </option>
                     ))}
+                    <option value="OTHER">Other</option>
                   </select>
                 )}
               </div>
@@ -625,9 +881,23 @@ const TransferInBoundView = () => {
         {/* Right Side: Container Selection */}
         <div className="col-span-2">
           <div className="rounded-lg border p-4 transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-            <h4 className="text-md font-semibold mb-4 transition-colors" style={{ color: 'var(--text-primary)' }}>
-              Container Selection
-            </h4>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-md font-semibold transition-colors" style={{ color: 'var(--text-primary)' }}>
+                Container Selection
+              </h4>
+              <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                Remaining: <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{Number(getRemainingGallons().toFixed(2))}</span> Gal
+              </div>
+            </div>
+            
+            {/* Warning message when remaining is 0 */}
+            {getRemainingGallons() <= 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-yellow-600 bg-opacity-20 border border-yellow-600" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-sm">
+                  The remaining is {Number(getRemainingGallons().toFixed(2))} gallons. No more containers can be selected.
+                </p>
+              </div>
+            )}
             
             {/* Use New Section - Top */}
             <div className="mb-6">
@@ -670,9 +940,66 @@ const TransferInBoundView = () => {
                           );
                           const capacity = parseFloat(kind?.capacityGallons || 0) || 0;
                           const count = parseInt(newContainerCounts[containerType.name] || 0, 10) || 0;
-                          const total = capacity * count;
                           const checked = selectedNewContainers[containerType.name] || false;
                           const name = newContainerNames[containerType.name] || '';
+                          
+                          // Calculate what this container would allocate based on sequential processing
+                          // Start with base total and process containers in order
+                          const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+                          let remaining = baseTotal;
+                          let thisContainerAllocation = 0;
+                          
+                          // Process containers in the same order as the reduction calculation
+                          const containerTypeIndex = newContainerTypes.findIndex(ct => ct.name === containerType.name);
+                          
+                          // Process new containers before this one
+                          for (let i = 0; i < containerTypeIndex; i++) {
+                            const otherType = newContainerTypes[i];
+                            const otherChecked = selectedNewContainers[otherType.name];
+                            if (otherChecked) {
+                              const otherCount = parseInt(newContainerCounts[otherType.name] || 0, 10) || 0;
+                              if (otherCount > 0) {
+                                const otherKind = containerKinds.find(ck => 
+                                  ck.name.toLowerCase().includes(otherType.name.toLowerCase()) ||
+                                  ck.type === otherType.type
+                                );
+                                if (otherKind && otherKind.capacityGallons) {
+                                  const otherCapacity = parseFloat(otherKind.capacityGallons) || 0;
+                                  const otherTotal = otherCapacity * otherCount;
+                                  const cappedOther = Math.min(otherTotal, remaining);
+                                  remaining = Math.max(0, remaining - cappedOther);
+                                }
+                              }
+                            }
+                          }
+                          
+                          // Calculate this container's allocation
+                          if (checked && count > 0) {
+                            const theoreticalTotal = capacity * count;
+                            thisContainerAllocation = Math.min(theoreticalTotal, remaining);
+                          }
+                          
+                          // For display: show the capped allocation
+                          const cappedTotal = thisContainerAllocation;
+                          
+                          // Calculate partial fill info
+                          let partialFillNote = '';
+                          if (checked && count > 0 && capacity * count > remaining && remaining > 0) {
+                            const fullContainers = Math.floor(remaining / capacity);
+                            const partialAmount = remaining % capacity;
+                            if (fullContainers > 0 && partialAmount > 0.01) {
+                              partialFillNote = `${fullContainers} full, One: ${partialAmount.toFixed(2)} Gal`;
+                            } else if (partialAmount > 0.01) {
+                              partialFillNote = `One: ${partialAmount.toFixed(2)} Gal`;
+                            } else if (fullContainers < count && fullContainers > 0) {
+                              partialFillNote = `${fullContainers} of ${count}`;
+                            }
+                          }
+                          
+                          // Check if remaining gallons is 0 to disable checkbox
+                          const currentRemaining = getRemainingGallons();
+                          const isDisabled = !checked && currentRemaining <= 0;
+                          
                           return (
                             <tr key={containerType.name} className="transition-colors">
                               <td className="px-3 py-2">
@@ -680,7 +1007,13 @@ const TransferInBoundView = () => {
                                   type="checkbox"
                                   checked={checked}
                                   onChange={() => handleNewContainerToggle(containerType.name)}
+                                  disabled={isDisabled}
                                   className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                                  style={{ 
+                                    opacity: isDisabled ? 0.5 : 1,
+                                    cursor: isDisabled ? 'not-allowed' : 'pointer'
+                                  }}
+                                  title={isDisabled ? `Remaining is ${currentRemaining.toFixed(2)} gallons. Cannot select more containers.` : ''}
                                 />
                               </td>
                               <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{containerType.type}</td>
@@ -710,7 +1043,16 @@ const TransferInBoundView = () => {
                                   disabled={!checked}
                                 />
                               </td>
-                              <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{Number(total)}</td>
+                              <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                                <div>
+                                  {cappedTotal > 0 ? Number(cappedTotal.toFixed(2)) : 0}
+                                  {partialFillNote && (
+                                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                      ({partialFillNote})
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
                               <td className="px-3 py-2">
                                 <input
                                   type="text"
@@ -774,7 +1116,59 @@ const TransferInBoundView = () => {
                             const capacity = parseFloat(container.containerKind?.capacityGallons || 0) || 0;
                             const isChecked = selectedOldContainers.includes(container.id);
                             const count = isChecked ? 1 : 0;
-                            const total = capacity * count;
+                            
+                            // Calculate what this container would allocate based on sequential processing
+                            const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+                            let remaining = baseTotal;
+                            
+                            // Process all new containers first (they come before old containers)
+                            if (useNew) {
+                              Object.entries(selectedNewContainers).forEach(([name, isSelected]) => {
+                                if (isSelected) {
+                                  const count = parseInt(newContainerCounts[name] || 0, 10) || 0;
+                                  if (count > 0) {
+                                    const containerType = newContainerTypes.find(ct => ct.name === name);
+                                    if (containerType) {
+                                      const kind = containerKinds.find(ck => 
+                                        ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                                        ck.type === containerType.type
+                                      );
+                                      if (kind && kind.capacityGallons) {
+                                        const otherCapacity = parseFloat(kind.capacityGallons) || 0;
+                                        const otherTotal = otherCapacity * count;
+                                        const cappedOther = Math.min(otherTotal, remaining);
+                                        remaining = Math.max(0, remaining - cappedOther);
+                                      }
+                                    }
+                                  }
+                                }
+                              });
+                            }
+                            
+                            // Process other old containers before this one
+                            const otherSelectedOld = selectedOldContainers.filter(id => id !== container.id);
+                            otherSelectedOld.forEach(containerId => {
+                              const otherContainer = emptyContainers.find(c => c.id === containerId);
+                              if (otherContainer && otherContainer.containerKind?.capacityGallons) {
+                                const otherCapacity = parseFloat(otherContainer.containerKind.capacityGallons);
+                                const cappedOther = Math.min(otherCapacity, remaining);
+                                remaining = Math.max(0, remaining - cappedOther);
+                              }
+                            });
+                            
+                            // Calculate this container's allocation
+                            const cappedTotal = isChecked ? Math.min(capacity, remaining) : 0;
+                            
+                            // Calculate partial fill info
+                            let partialFillNote = '';
+                            if (isChecked && capacity > remaining && remaining > 0) {
+                              partialFillNote = `One: ${remaining.toFixed(2)} Gal`;
+                            }
+                            
+                            // Check if remaining gallons is 0 to disable checkbox
+                            const currentRemaining = getRemainingGallons();
+                            const isDisabled = !isChecked && currentRemaining <= 0;
+                            
                             return (
                               <tr key={container.id} className="transition-colors">
                                 <td className="px-3 py-2">
@@ -782,13 +1176,28 @@ const TransferInBoundView = () => {
                                     type="checkbox"
                                     checked={isChecked}
                                     onChange={() => handleOldContainerToggle(container.id)}
+                                    disabled={isDisabled}
                                     className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                                    style={{ 
+                                      opacity: isDisabled ? 0.5 : 1,
+                                      cursor: isDisabled ? 'not-allowed' : 'pointer'
+                                    }}
+                                    title={isDisabled ? `Remaining is ${currentRemaining.toFixed(2)} gallons. Cannot select more containers.` : ''}
                                   />
                                 </td>
                                 <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{container.name || 'Unnamed'}</td>
                                 <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{capacity || 0}</td>
                                 <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{count}</td>
-                                <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>{total.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                                  <div>
+                                    {cappedTotal > 0 ? Number(cappedTotal.toFixed(2)) : 0}
+                                    {partialFillNote && (
+                                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                        ({partialFillNote})
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
                               </tr>
                             );
                           })}
@@ -804,6 +1213,16 @@ const TransferInBoundView = () => {
           </div>
         </div>
       </div>
+
+      {/* DSP Modal */}
+      {showDSPModal && (
+        <AddEditDSPModal
+          isOpen={showDSPModal}
+          onClose={() => setShowDSPModal(false)}
+          mode="add"
+          onSave={handleNewDSPCreated}
+        />
+      )}
     </div>
   );
 };

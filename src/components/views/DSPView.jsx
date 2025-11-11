@@ -50,6 +50,17 @@ const DSPView = () => {
 
   const handleAddDSP = async (dspData) => {
     try {
+      // Check for duplicate name (case-insensitive) before adding
+      const duplicateDSP = dsps.find(
+        (dsp) => dsp.name.toLowerCase().trim() === dspData.name?.toLowerCase().trim()
+      );
+      
+      if (duplicateDSP) {
+        setError("A DSP with this name already exists. Please choose a different name.");
+        setShowAddDSPModal(false);
+        return;
+      }
+
       // If dspData is already a DSP object (from modal callback), use it directly
       if (dspData.id) {
         setDsps((prev) => [...prev, dspData]);
@@ -58,13 +69,25 @@ const DSPView = () => {
       } else {
         // If dspData is raw data, create the DSP
         const newDSP = await dspsAPI.create(dspData);
+        // Double-check for duplicates after creation
+        const stillDuplicate = dsps.find(
+          (dsp) => dsp.name.toLowerCase().trim() === newDSP.name?.toLowerCase().trim()
+        );
+        if (stillDuplicate) {
+          setError("A DSP with this name already exists. Please choose a different name.");
+          setShowAddDSPModal(false);
+          return;
+        }
         setDsps((prev) => [...prev, newDSP]);
         setShowAddDSPModal(false);
         setError("");
       }
     } catch (err) {
       console.error("Error adding DSP:", err);
-      setError("Failed to add DSP.");
+      const errorMessage = err.message || "Failed to add DSP.";
+      setError(errorMessage);
+      // Don't close modal on error so user can fix it
+      setShowAddDSPModal(true);
       throw err;
     }
   };

@@ -45,11 +45,33 @@ export const AddEditDSPModal = ({ isOpen, onClose, onSave, mode = "add", dsp = n
       setFormError("DSP name is required.");
       return;
     }
+
+    // Check for duplicate name (case-insensitive) before calling API
+    const duplicateDSP = dsps.find(
+      (dsp) => dsp.name.toLowerCase().trim() === dspName.toLowerCase().trim()
+    );
+    
+    if (duplicateDSP) {
+      setFormError("A DSP with this name already exists. Please choose a different name.");
+      return;
+    }
+
     try {
       const newDSP = await dspsAPI.create({
         name: dspName,
         description: dspDescription,
       });
+      
+      // Double-check for duplicates after creation (in case of race condition)
+      const stillDuplicate = dsps.find(
+        (dsp) => dsp.name.toLowerCase().trim() === newDSP.name?.toLowerCase().trim()
+      );
+      
+      if (stillDuplicate) {
+        setFormError("A DSP with this name already exists. Please choose a different name.");
+        return;
+      }
+      
       setDsps(prev => [...prev, newDSP]);
       setDspName("");
       setDspDescription("");
@@ -61,7 +83,12 @@ export const AddEditDSPModal = ({ isOpen, onClose, onSave, mode = "add", dsp = n
       }
     } catch (err) {
       console.error("Add DSP error:", err);
-      setFormError("Failed to add DSP.");
+      // Extract error message from API response
+      // The apiRequest function throws errors with the message containing the error
+      const errorMessage = err.message || "Failed to add DSP.";
+      setFormError(errorMessage);
+      // Don't proceed if there's an error
+      return;
     }
   };
 
@@ -84,6 +111,18 @@ export const AddEditDSPModal = ({ isOpen, onClose, onSave, mode = "add", dsp = n
       setFormError("DSP name is required.");
       return;
     }
+
+    // Check for duplicate name (case-insensitive) before calling API
+    // Exclude the current DSP being edited
+    const duplicateDSP = dsps.find(
+      (dsp) => dsp.id !== editingDSP.id && dsp.name.toLowerCase().trim() === dspName.toLowerCase().trim()
+    );
+    
+    if (duplicateDSP) {
+      setFormError("A DSP with this name already exists. Please choose a different name.");
+      return;
+    }
+
     try {
       const updatedDSP = await dspsAPI.update(editingDSP.id, {
         name: dspName,
@@ -100,7 +139,12 @@ export const AddEditDSPModal = ({ isOpen, onClose, onSave, mode = "add", dsp = n
       }
     } catch (err) {
       console.error("Save changes error:", err);
-      setFormError("Failed to save changes.");
+      // Extract error message from API response
+      // The apiRequest function throws errors with the message containing the error
+      const errorMessage = err.message || "Failed to save changes.";
+      setFormError(errorMessage);
+      // Don't proceed if there's an error
+      return;
     }
   };
 
