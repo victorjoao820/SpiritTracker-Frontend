@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { transferInboundAPI, containersAPI, containerKindsAPI, productsAPI, dspsAPI } from '../../services/api';
 import { AddEditDSPModal } from '../modals';
+import { calculateDerivedValuesFromWineGallons } from '../../utils/helpers';
 
 // Format date for datetime-local input
 const formatDateTimeLocal = (date) => {
@@ -91,12 +92,29 @@ const TransferInBoundView = () => {
       const transfers = response.transfers || response;
       const nextTransferNumber = response.nextTransferNumber;
       
+      // Calculate next TIB number: max transferNumber + 1
+      // If nextTransferNumber is provided, use it; otherwise calculate from transfers
+      let calculatedNextNumber = 1;
+      if (nextTransferNumber) {
+        calculatedNextNumber = nextTransferNumber;
+      } else if (transfers && Array.isArray(transfers) && transfers.length > 0) {
+        // Calculate max transferNumber from all transfers
+        const maxNumber = transfers.reduce((max, t) => {
+          if (!t.transferNumber) return max;
+          // Extract numeric part from transferNumber (handle formats like "TIB-1", "1", etc.)
+          const numMatch = t.transferNumber.toString().match(/\d+/);
+          const num = numMatch ? parseInt(numMatch[0], 10) : 0;
+          return Math.max(max, num);
+        }, 0);
+        calculatedNextNumber = maxNumber + 1;
+      }
+      
       // If there's existing data, load the first one
       if (transfers && Array.isArray(transfers) && transfers.length > 0) {
         const transfer = transfers[0];
         const totalGallonsValue = transfer.volumeGallons?.toString() || '';
         setRowData({
-          tibInNumber: transfer.transferNumber || (nextTransferNumber ? nextTransferNumber.toString() : '1'),
+          tibInNumber: calculatedNextNumber.toString(), // Always use calculated next number
           spiritType: transfer.productId?.toString() || '',
           fromDSP: transfer.destination || '',
           totalGallons: totalGallonsValue,
@@ -116,7 +134,7 @@ const TransferInBoundView = () => {
         // If no existing data, set the auto-generated TIB In Number
         setRowData(prev => ({
           ...prev,
-          tibInNumber: nextTransferNumber ? nextTransferNumber.toString() : '1',
+          tibInNumber: calculatedNextNumber.toString(),
         }));
       }
       setError('');
@@ -572,6 +590,163 @@ const TransferInBoundView = () => {
       const existingTransfer = Array.isArray(existingTransfers) 
         ? existingTransfers.find(t => t.transferNumber === rowData.tibInNumber)
         : null;
+
+      // Create containers from container selection before saving transfer
+      const createdContainerIds = [];
+      
+      // Create new containers
+      if (useNew) {
+        const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+        let remaining = baseTotal;
+        
+        for (const containerType of newContainerTypes) {
+          const isSelected = selectedNewContainers[containerType.name];
+          if (isSelected) {
+            const count = parseInt(newContainerCounts[containerType.name] || 0, 10) || 0;
+            if (count > 0) {
+              const kind = containerKinds.find(ck => 
+                ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                ck.type === containerType.type
+              );
+              
+              if (kind && kind.id) {
+                const capacity = parseFloat(kind.capacityGallons || 0) || 0;
+                const containerName = newContainerNames[containerType.name] || '';
+                
+                // Calculate how many full containers and partial
+                const theoreticalTotal = capacity * count;
+                const cappedTotal = Math.min(theoreticalTotal, remaining);
+                const fullContainers = Math.floor(cappedTotal / capacity);
+                const partialAmount = cappedTotal % capacity;
+                
+                // Calculate netWeight from capacity (wine gallons)
+                const tareWeight = parseFloat(kind.tareWeight || 0) || 0;
+                const defaultProof = 0; // Default proof, can be updated later
+                const defaultTemp = 60; // Default temperature
+                
+                // Create full containers
+                for (let i = 0; i < fullContainers; i++) {
+                  try {
+                    // Calculate netWeight from capacity (wine gallons)
+                    const wineGallons = capacity;
+                    const calculated = calculateDerivedValuesFromWineGallons(
+                      wineGallons,
+                      defaultProof,
+                      tareWeight,
+                      defaultTemp
+                    );
+                    
+                    const containerData = {
+                      name: containerName || `${containerType.type}-${i + 1}`,
+                      type: containerType.type,
+                      containerKindId: kind.id,
+                      productId: rowData.spiritType || null,
+                      status: 'FILLED',
+                      proof: defaultProof,
+                      tareWeight: tareWeight,
+                      netWeight: calculated.netWeightLbs,
+                      fillDate: rowData.transferDate ? new Date(rowData.transferDate) : new Date(),
+                      notes: `Created from Transfer Inbound TIB-${rowData.tibInNumber}`
+                    };
+                    
+                    const newContainer = await containersAPI.create(containerData);
+                    createdContainerIds.push(newContainer.id);
+                  } catch (err) {
+                    console.error(`Error creating container ${i + 1} of ${containerType.name}:`, err);
+                  }
+                }
+                
+                // Create partial container if there's a partial amount
+                if (partialAmount > 0.01) {
+                  try {
+                    // Calculate netWeight from partial amount (wine gallons)
+                    const wineGallons = partialAmount;
+                    const calculated = calculateDerivedValuesFromWineGallons(
+                      wineGallons,
+                      defaultProof,
+                      tareWeight,
+                      defaultTemp
+                    );
+                    
+                    const containerData = {
+                      name: containerName || `${containerType.type}-partial`,
+                      type: containerType.type,
+                      containerKindId: kind.id,
+                      productId: rowData.spiritType || null,
+                      status: 'FILLED',
+                      proof: defaultProof,
+                      tareWeight: tareWeight,
+                      netWeight: calculated.netWeightLbs,
+                      fillDate: rowData.transferDate ? new Date(rowData.transferDate) : new Date(),
+                      notes: `Created from Transfer Inbound TIB-${rowData.tibInNumber} (Partial: ${partialAmount.toFixed(2)}gal)`
+                    };
+                    
+                    const newContainer = await containersAPI.create(containerData);
+                    createdContainerIds.push(newContainer.id);
+                  } catch (err) {
+                    console.error(`Error creating partial container for ${containerType.name}:`, err);
+                  }
+                }
+                
+                remaining = Math.max(0, remaining - cappedTotal);
+              }
+            }
+          }
+        }
+      }
+      
+      // Update old containers (they already exist, just need to be filled/updated)
+      if (useOld && selectedOldContainers.length > 0) {
+        const baseTotal = parseFloat(baseTotalGallons || rowData.totalGallons || 0);
+        let remaining = baseTotal;
+        
+        // Process new containers first to get remaining
+        if (useNew) {
+          Object.entries(selectedNewContainers).forEach(([name, isSelected]) => {
+            if (isSelected) {
+              const count = parseInt(newContainerCounts[name] || 0, 10) || 0;
+              if (count > 0) {
+                const containerType = newContainerTypes.find(ct => ct.name === name);
+                const kind = containerKinds.find(ck => 
+                  ck.name.toLowerCase().includes(containerType.name.toLowerCase()) ||
+                  ck.type === containerType.type
+                );
+                if (kind && kind.capacityGallons) {
+                  const capacity = parseFloat(kind.capacityGallons) || 0;
+                  const total = capacity * count;
+                  const capped = Math.min(total, remaining);
+                  remaining = Math.max(0, remaining - capped);
+                }
+              }
+            }
+          });
+        }
+        
+        // Update old containers
+        for (const containerId of selectedOldContainers) {
+          const container = emptyContainers.find(c => c.id === containerId);
+          if (container) {
+            const capacity = parseFloat(container.containerKind?.capacityGallons || 0) || 0;
+            const allocated = Math.min(capacity, remaining);
+            
+            try {
+              const updateData = {
+                productId: rowData.spiritType || container.productId || null,
+                status: 'FILLED',
+                fillDate: rowData.transferDate ? new Date(rowData.transferDate) : new Date(),
+                notes: container.notes ? `${container.notes}; Filled from Transfer Inbound TIB-${rowData.tibInNumber}` : `Filled from Transfer Inbound TIB-${rowData.tibInNumber}`
+              };
+              
+              await containersAPI.update(containerId, updateData);
+              createdContainerIds.push(containerId);
+            } catch (err) {
+              console.error(`Error updating container ${containerId}:`, err);
+            }
+            
+            remaining = Math.max(0, remaining - allocated);
+          }
+        }
+      }
 
       let wasUpdated = false;
       if (existingTransfer) {

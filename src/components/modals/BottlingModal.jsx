@@ -9,13 +9,18 @@ export const BottlingModal = ({
   onClose,
   container,
   onSave,
+  onAdd, // Optional callback for adding without closing (for multi-add mode)
 }) => {
   const [bottleSize, setBottleSize] = useState("750");
   const [numberOfBottles, setNumberOfBottles] = useState("");
+  const [inputMode, setInputMode] = useState("bottle"); // "bottle" or "case"
   const [remainderAction, setRemainderAction] = useState("keep");
   const [adjustmentType, setAdjustmentType] = useState("loss");
   const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [formError, setFormError] = useState("");
+  const [bottlingCount, setBottlingCount] = useState(0); // Track number of bottlings added
+  const [successMessage, setSuccessMessage] = useState(""); // Success message for each addition
+  const [addedBottlings, setAddedBottlings] = useState([]); // Store list of added bottlings
 
   // Bottle size options in liters
   const bottleSizeOptions = [
@@ -48,16 +53,38 @@ export const BottlingModal = ({
   };
 
   const maxBottles = calculateMaxBottles();
+  const maxCases = Math.floor(maxBottles / 12);
+  
+  // Reset bottling count and list when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setBottlingCount(0);
+      setSuccessMessage("");
+      setAddedBottlings([]);
+    }
+  }, [isOpen]);
+  
   // Update numberOfBottles when bottleSize changes or when remainderAction is "loss"
   useEffect(() => {
     if (remainderAction === "empty" && maxBottles >= 0) {
-      setNumberOfBottles(maxBottles.toString());
+      if (inputMode === "case") {
+        setNumberOfBottles(maxCases.toString());
+      } else {
+        setNumberOfBottles(maxBottles.toString());
+      }
     }
-  }, [remainderAction, maxBottles, bottleSize]);
+  }, [remainderAction, maxBottles, maxCases, bottleSize, inputMode]);
 
   // Calculate bottled volume in wine gallons
   const calculateBottledVolume = () => {
-    const bottles = remainderAction === "empty" ? maxBottles : parseInt(numberOfBottles) || 0;
+    let bottles = 0;
+    if (remainderAction === "empty") {
+      bottles = maxBottles;
+    } else {
+      const inputValue = parseInt(numberOfBottles) || 0;
+      // Convert cases to bottles if in case mode
+      bottles = inputMode === "case" ? inputValue * 12 : inputValue;
+    }
     const sizeLiters = parseFloat(bottleSize) / 1000 || 0;
     // Convert to wine gallons (1 liter = 0.264172 gallons)
     return (bottles * sizeLiters * 0.264172);
@@ -69,13 +96,24 @@ export const BottlingModal = ({
   const remainderPG = availablePG - bottledPG;
   const remainderLbs = remainderWG * spiritDensity;
 
-  const handleBottling = async () => {
-    setFormError("");
-
-    const bottles = remainderAction === "empty" ? maxBottles : parseInt(numberOfBottles);
-    if (isNaN(bottles) || bottles <= 0) {
+  // Helper function to validate and calculate bottles
+  const validateAndCalculateBottles = () => {
+    let bottles = 0;
+    if (remainderAction === "empty") {
+      bottles = maxBottles;
+    } else {
+      const inputValue = parseInt(numberOfBottles);
+      if (isNaN(inputValue) || inputValue <= 0) {
+        setFormError(`Please enter a valid number of ${inputMode === "case" ? "cases" : "bottles"}.`);
+        return null;
+      }
+      // Convert cases to bottles if in case mode
+      bottles = inputMode === "case" ? inputValue * 12 : inputValue;
+    }
+    
+    if (bottles <= 0) {
       setFormError("Please enter a valid number of bottles.");
-      return;
+      return null;
     }
 
     // Validate adjustment amount if adjustment is selected
@@ -83,9 +121,146 @@ export const BottlingModal = ({
       const adjustAmount = parseFloat(adjustmentAmount);
       if (isNaN(adjustAmount) || adjustAmount < 0) {
         setFormError("Please enter a valid adjustment amount.");
-        return;
+        return null;
       }
     }
+
+    return bottles;
+  };
+
+  // Add bottling to queue (don't save yet - wait for Confirm)
+  const handleAddBottling = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    setFormError("");
+    setSuccessMessage("");
+
+    const bottles = validateAndCalculateBottles();
+    if (bottles === null) return;
+
+    // Prepare bottling data (but don't save yet)
+    const bottlingData = {
+      containerId: container.id,
+      bottleSize: bottleSize,
+      numberOfBottles: bottles,
+      remainderAction: remainderAction,
+      bottledWG: bottledWG,
+      remainderLbs: remainderLbs,
+    };
+
+    // Add adjustment data if applicable
+    if (remainderAction === "adjust") {
+      bottlingData.remainderAction = adjustmentType;
+      bottlingData.adjustmentAmount = parseFloat(adjustmentAmount);
+      bottlingData.remainderLbs = 0;
+    }
+
+    // Increment count
+    const newCount = bottlingCount + 1;
+    setBottlingCount(newCount);
+    
+    // Prepare display info for the list
+    const sizeLabel = bottleSizeOptions.find(opt => opt.value === bottleSize)?.label || `${bottleSize}mL`;
+    const quantityText = inputMode === "case" 
+      ? `${numberOfBottles} cases (${bottles} bottles)` 
+      : `${bottles} bottles`;
+    
+    // Add to the list of queued bottlings (store full data for saving later)
+    const bottlingRecord = {
+      id: Date.now(), // Simple ID for list key
+      bottlingData: bottlingData, // Store full data for saving
+      sizeLabel: sizeLabel,
+      quantityText: quantityText,
+      bottles: bottles,
+      bottledWG: bottledWG,
+      bottledPG: bottledPG,
+      inputMode: inputMode,
+      numberOfBottles: numberOfBottles,
+    };
+    setAddedBottlings(prev => [...prev, bottlingRecord]);
+
+    // Reset form for next entry (keep bottle size and mode, but clear quantity)
+    setNumberOfBottles("");
+    setAdjustmentAmount("");
+    // Note: We keep remainderAction, bottleSize, and inputMode for convenience
+  };
+
+  const handleBottling = async () => {
+    setFormError("");
+    setSuccessMessage("");
+
+    // If there are queued bottlings, save all of them
+    if (addedBottlings.length > 0) {
+      try {
+        // Save all queued bottlings
+        for (const bottlingRecord of addedBottlings) {
+          const bottlingData = bottlingRecord.bottlingData;
+          
+          // Use onAdd if available (for multi-add mode), otherwise use onSave
+          if (onAdd) {
+            await onAdd(bottlingData);
+          } else {
+            await onSave(bottlingData);
+          }
+          
+          // Log the transaction
+          logTransaction({
+            transactionType: TRANSACTION_TYPES.BOTTLE_KEEP,
+            containerId: container.id,
+            containerName: container.name || container.type,
+            notes: `Bottled ${bottlingRecord.bottles} bottles (${bottlingRecord.bottledWG.toFixed(2)} WG)`,
+          });
+        }
+        
+        // If there's also a current input value, save that too
+        if (numberOfBottles && parseFloat(numberOfBottles) > 0 && remainderAction !== "empty") {
+          const bottles = validateAndCalculateBottles();
+          if (bottles !== null) {
+            const bottlingData = {
+              containerId: container.id,
+              bottleSize: bottleSize,
+              numberOfBottles: bottles,
+              remainderAction: remainderAction,
+              bottledWG: bottledWG,
+              remainderLbs: remainderLbs,
+            };
+
+            // Add adjustment data if applicable
+            if (remainderAction === "adjust") {
+              bottlingData.remainderAction = adjustmentType;
+              bottlingData.adjustmentAmount = parseFloat(adjustmentAmount);
+              bottlingData.remainderLbs = 0;
+            }
+
+            if (onAdd) {
+              await onAdd(bottlingData);
+            } else {
+              await onSave(bottlingData);
+            }
+            
+            logTransaction({
+              transactionType: TRANSACTION_TYPES.BOTTLE_KEEP,
+              containerId: container.id,
+              containerName: container.name || container.type,
+              notes: `Bottled ${bottles} bottles (${bottledWG.toFixed(2)} WG)`,
+            });
+          }
+        }
+        
+        onClose();
+      } catch (err) {
+        console.error("Bottling error:", err);
+        setFormError("Bottling failed: " + err.message);
+      }
+      return;
+    }
+
+    // No queued bottlings - handle single bottling (original behavior)
+    const bottles = validateAndCalculateBottles();
+    if (bottles === null) return;
 
     try {
       const bottlingData = {
@@ -134,6 +309,16 @@ export const BottlingModal = ({
           <div className="bg-red-600 p-3 rounded mb-4 text-sm">{formError}</div>
         )}
 
+        {successMessage && (
+          <div className="bg-green-600 p-3 rounded mb-4 text-sm">{successMessage}</div>
+        )}
+
+        {bottlingCount > 0 && (
+          <div className="bg-blue-600 p-2 rounded mb-4 text-sm text-center">
+            {bottlingCount} bottling{bottlingCount > 1 ? 's' : ''} queued. Click "Confirm All" to save them, or continue adding with "+" button.
+          </div>
+        )}
+
         <div className="space-y-4">
           <p className="text-sm text-gray-400">
             <strong>Available:</strong> {availableWG.toFixed(2)} WG @ {proof} Proof
@@ -141,7 +326,7 @@ export const BottlingModal = ({
 
           <div className="grid grid-cols-2 gap-4 p-4 border border-gray-700 rounded-lg">
             <div>
-              <label htmlFor="bottleSize" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="bottleSize" className="block text-sm font-medium mb-1 text-gray-300">
                 Bottle Size
               </label>
               <select
@@ -159,22 +344,88 @@ export const BottlingModal = ({
             </div>
 
             <div>
-              <label htmlFor="numBottles" className="block text-sm font-medium text-gray-300">
-                Number of Bottles
-              </label>
-              <input
-                id="numBottles"
-                type="number"
-                placeholder="e.g., 120"
-                value={numberOfBottles}
-                onChange={(e) => setNumberOfBottles(e.target.value)}
-                step="1"
-                min="0"
-                readOnly={remainderAction === "empty"}
-                className={`w-full bg-gray-700 p-2 rounded mt-1 text-gray-300 ${
-                  remainderAction === "empty" ? "cursor-not-allowed opacity-75" : ""
-                }`}
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="numBottles" className="block text-sm font-medium text-gray-300">
+                  {inputMode === "case" ? "Number of Cases" : "Number of Bottles"}
+                </label>
+                <div className="flex items-center space-x-2">
+                  {/* <span className="text-xs text-gray-400">Bottle</span> */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newMode = inputMode === "bottle" ? "case" : "bottle";
+                      // Convert current value when switching modes
+                      const currentValue = parseFloat(numberOfBottles) || 0;
+                      if (currentValue > 0) {
+                        if (inputMode === "bottle") {
+                          // Converting from bottles to cases
+                          setNumberOfBottles((currentValue / 12).toString());
+                        } else {
+                          // Converting from cases to bottles
+                          setNumberOfBottles((currentValue * 12).toString());
+                        }
+                      }
+                      setInputMode(newMode);
+                    }}
+                    className={`relative inline-flex h-1 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      inputMode === "case" ? "bg-sky-600" : "bg-gray-600"
+                    }`}
+                    role="switch"
+                    aria-checked={inputMode === "case"}
+                    title={`Toggle to ${inputMode === "bottle" ? "Case" : "Bottle"} mode`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        inputMode === "case" ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  {/* <span className="text-xs text-gray-400">Case</span> */}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="numBottles"
+                  type="number"
+                  placeholder={inputMode === "case" ? "e.g., 5" : "e.g., 120"}
+                  value={numberOfBottles}
+                  onChange={(e) => setNumberOfBottles(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Prevent Enter key from submitting/closing modal
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (remainderAction !== "empty" && numberOfBottles && parseFloat(numberOfBottles) > 0) {
+                        handleAddBottling(e);
+                      }
+                    }
+                  }}
+                  step="1"
+                  min="0"
+                  readOnly={remainderAction === "empty"}
+                  className={`w-full bg-gray-700 p-2 rounded mt-1 text-gray-300 ${
+                    remainderAction === "empty" ? "cursor-not-allowed opacity-75" : ""
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAddBottling(e);
+                  }}
+                  disabled={remainderAction === "empty" || !numberOfBottles || parseFloat(numberOfBottles) <= 0}
+                  className="mt-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 text-white rounded transition-colors"
+                  title="Add this bottling and continue"
+                >
+                  +
+                </button>
+              </div>
+              {inputMode === "case" && numberOfBottles && parseFloat(numberOfBottles) > 0 && (
+                <p className="text-xs text-gray-400 mt-1">
+                  = {parseFloat(numberOfBottles) * 12} bottles
+                </p>
+              )}
             </div>
           </div>
 
@@ -189,6 +440,48 @@ export const BottlingModal = ({
               </span>
             </p>
           </div>
+
+          {/* Show list of added bottlings */}
+          {addedBottlings.length > 0 && (
+            <div className="bg-gray-700 p-3 rounded text-sm">
+              <h4 className="font-semibold text-gray-300 mb-2">Queued Bottlings ({addedBottlings.length}):</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {addedBottlings.map((bottling, index) => (
+                  <div 
+                    key={bottling.id} 
+                    className="bg-gray-600 p-2 rounded border-l-4 border-green-500"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-gray-200 font-medium">
+                          {index + 1}. {bottling.sizeLabel} × {bottling.quantityText}
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          {bottling.bottledWG.toFixed(2)} WG / {bottling.bottledPG.toFixed(2)} PG
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-2 border-t border-gray-600">
+                <p className="text-gray-300">
+                  <strong>Total Added:</strong>{" "}
+                  <span className="text-sky-300">
+                    {addedBottlings.reduce((sum, b) => sum + b.bottles, 0)} bottles
+                  </span>
+                  {" / "}
+                  <span className="text-sky-300">
+                    {addedBottlings.reduce((sum, b) => sum + b.bottledWG, 0).toFixed(2)} WG
+                  </span>
+                  {" / "}
+                  <span className="text-sky-300">
+                    {addedBottlings.reduce((sum, b) => sum + b.bottledPG, 0).toFixed(2)} PG
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="p-4 border border-gray-700 rounded-lg">
             <h4 className="text-md font-semibold text-gray-300 mb-2">Finalize Container</h4>
@@ -273,13 +566,15 @@ export const BottlingModal = ({
               onClick={onClose}
               className="bg-gray-600 hover:bg-gray-700 py-2 px-4 rounded text-gray-300"
             >
-              Cancel
+              {bottlingCount > 0 ? 'Close' : 'Cancel'}
             </button>
             <button
               onClick={handleBottling}
-              className="bg-sky-600 hover:bg-sky-700 py-2 px-4 rounded disabled:bg-sky-800 disabled:cursor-not-allowed text-white"
+              disabled={bottlingCount === 0 && (!numberOfBottles || parseFloat(numberOfBottles) <= 0) && remainderAction !== "empty"}
+              className="bg-sky-600 hover:bg-sky-700 py-2 px-4 rounded disabled:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+              title={bottlingCount > 0 ? `Confirm all ${bottlingCount} queued bottling${bottlingCount > 1 ? 's' : ''} and close` : "Confirm single bottling operation"}
             >
-              Confirm Bottling
+              {bottlingCount > 0 ? `Confirm All (${bottlingCount})` : "Confirm Bottling"}
             </button>
           </div>
         </div>

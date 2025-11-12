@@ -50,11 +50,88 @@ const InventoryView = () => {
     return dateA - dateB;
   });
   
+  // Helper function to check if container was created/updated from Transfer Inbound
+  const isFromTransferInbound = (container) => {
+    return container.notes && (
+      container.notes.includes('Created from Transfer Inbound TIB-') ||
+      container.notes.includes('Filled from Transfer Inbound TIB-')
+    );
+  };
+  
+  // Extract TIB number from notes for grouping
+  const getTIBNumber = (notes) => {
+    if (!notes) return null;
+    const match = notes.match(/(?:Created|Filled) from Transfer Inbound TIB-(\d+)/);
+    return match ? match[1] : null;
+  };
+  
+  // Separate containers: those from Transfer Inbound (to be grouped) and others (individual)
+  const transferInboundContainers = [];
+  const individualContainers = [];
+  
+  sortedInventory.forEach(container => {
+    if (isFromTransferInbound(container)) {
+      transferInboundContainers.push(container);
+    } else {
+      individualContainers.push(container);
+    }
+  });
+  
+  // Group Transfer Inbound containers by containerKindId AND TIB number
+  // (so containers from same transfer and same type are grouped together)
+  const groupedTransferContainers = transferInboundContainers.reduce((groups, container) => {
+    const tibNumber = getTIBNumber(container.notes);
+    const key = `${container.containerKindId || `no-kind-${container.type || 'unknown'}`}-TIB-${tibNumber || 'unknown'}`;
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(container);
+    return groups;
+  }, {});
+  
+  // Convert grouped containers to array of group objects
+  const transferContainerGroups = Object.entries(groupedTransferContainers).map(([key, containers]) => ({
+    key,
+    containers,
+    containerKindId: containers[0]?.containerKindId,
+    type: containers[0]?.type,
+    count: containers.length,
+    isGrouped: true, // Mark as grouped
+    // Use first container as representative for display
+    representative: containers[0]
+  }));
+  
+  // Convert individual containers to group-like objects (single container per group)
+  const individualContainerGroups = individualContainers.map(container => ({
+    key: container.id,
+    containers: [container],
+    containerKindId: container.containerKindId,
+    type: container.type,
+    count: 1,
+    isGrouped: false, // Mark as individual
+    representative: container
+  }));
+  
+  // Combine both arrays
+  const containerGroups = [...transferContainerGroups, ...individualContainerGroups];
+  
+  // Sort groups by fillDate (using first container's date)
+  containerGroups.sort((a, b) => {
+    const dateA = a.representative.fillDate ? new Date(a.representative.fillDate).getTime() : 0;
+    const dateB = b.representative.fillDate ? new Date(b.representative.fillDate).getTime() : 0;
+    
+    if (!a.representative.fillDate && !b.representative.fillDate) return 0;
+    if (!a.representative.fillDate) return 1;
+    if (!b.representative.fillDate) return -1;
+    
+    return dateA - dateB;
+  });
+  
   // Calculate pagination
-  const totalPages = Math.ceil(sortedInventory.length / itemsPerPage);
+  const totalPages = Math.ceil(containerGroups.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentContainers = sortedInventory.slice(startIndex, endIndex);
+  const currentContainers = containerGroups.slice(startIndex, endIndex);
 
   useEffect(() => {
     fetchData();
@@ -285,6 +362,41 @@ const InventoryView = () => {
     }
   }
 
+  // Handler for adding bottling without closing modal (multi-add mode)
+  const handleBottlingAdd = async (bottlingData) => {
+    try {
+      // Store previous values before updating
+      const previousContainer = inventory.find(c => c.id === bottlingData.containerId);
+      const calculated = calculateContainerData(previousContainer);
+      const product = products.find(p => p.id === previousContainer?.productId);
+      const prevValues = {
+        netWeight: previousContainer?.netWeight,
+        grossWeight: calculated.grossWeight,
+        wineGallons: calculated.wineGallons,
+        proofGallons: calculated.proofGallons,
+        status: previousContainer?.status,
+        productName: product?.name
+      };
+      
+      // Call bottling API
+      await containerOperationsAPI.bottle(bottlingData);
+      await fetchData(); // Refresh inventory
+      
+      // Mark this container as changed with previous values
+      setChangedContainerIds([bottlingData.containerId]);
+      setPreviousValues({
+        [bottlingData.containerId]: prevValues
+      });
+      
+      // Don't close modal - allow multiple additions
+      setError("");
+    } catch (err) {
+      console.error("Error bottling container:", err);
+      setError("Failed to bottle container.");
+      throw err;
+    }
+  }
+
   const handleTransfer = (container) => {
     setChangedContainerIds([]);
     setPreviousValues({});
@@ -424,6 +536,54 @@ const InventoryView = () => {
 
   // Check if container is changed
   const isChanged = (containerId) => changedContainerIds.includes(containerId);
+  
+  // Helper function to calculate aggregated data for a group of containers
+  const calculateGroupData = (containers) => {
+    if (containers.length === 0) return null;
+    
+    const totalTareWeight = containers.reduce((sum, c) => {
+      const calculated = calculateContainerData(c);
+      return sum + calculated.tareWeight;
+    }, 0);
+    
+    const totalGrossWeight = containers.reduce((sum, c) => {
+      const calculated = calculateContainerData(c);
+      return sum + calculated.grossWeight;
+    }, 0);
+    
+    const totalNetWeight = containers.reduce((sum, c) => {
+      return sum + (parseFloat(c.netWeight) || 0);
+    }, 0);
+    
+    const totalWineGallons = containers.reduce((sum, c) => {
+      const calculated = calculateContainerData(c);
+      return sum + calculated.wineGallons;
+    }, 0);
+    
+    const totalProofGallons = containers.reduce((sum, c) => {
+      const calculated = calculateContainerData(c);
+      return sum + calculated.proofGallons;
+    }, 0);
+    
+    // Average percentage full
+    const avgPercentageFull = containers.reduce((sum, c) => {
+      const calculated = calculateContainerData(c);
+      return sum + calculated.percentageFull;
+    }, 0) / containers.length;
+    
+    // Use first container as representative for status, product, fillDate, proof
+    const representative = containers[0];
+    
+    return {
+      totalTareWeight,
+      totalGrossWeight,
+      totalNetWeight,
+      totalWineGallons,
+      totalProofGallons,
+      avgPercentageFull,
+      representative
+    };
+  };
 
 
   return (
@@ -458,7 +618,7 @@ const InventoryView = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-400">Loading inventory...</div>
         </div>
-      ) : sortedInventory.length === 0 ? (
+      ) : containerGroups.length === 0 ? (
         <div className="rounded-lg p-12 text-center border transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
           <p className="mb-4 transition-colors" style={{ color: 'var(--text-tertiary)' }}>No containers found</p>
           <Button
@@ -490,12 +650,14 @@ const InventoryView = () => {
                 </div>
               </div>
               <div className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                {currentContainers.map((container, index) => {
+                {currentContainers.map((group, index) => {
+                  const container = group.representative;
+                  const isGroupChanged = group.containers.some(c => isChanged(c.id));
                   return (
                     <div 
-                      key={container.id} 
+                      key={group.key} 
                       className={`flex transition-all h-16 ${
-                        isChanged(container.id) ? 'bg-yellow-900/30 animate-pulse' : ''
+                        isGroupChanged ? 'bg-yellow-900/30 animate-pulse' : ''
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
@@ -505,31 +667,21 @@ const InventoryView = () => {
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap transition-colors">
                         <div className="text-center">
                           <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
-                            {getChangedValueDisplay(
-                              container.id,
-                              'name',
-                              container.name || 'Unnamed',
-                              (v) => v || 'Unnamed'
+                            {container.name || 'Unnamed'}
+                            {group.isGrouped && group.count > 1 && (
+                              <span className="ml-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                (x{group.count})
+                              </span>
                             )}
                           </div>
                           <div className="text-xs capitalize transition-colors" style={{ color: 'var(--text-tertiary)' }}>
-                            {getChangedValueDisplay(
-                              container.id,
-                              'type',
-                              container.type,
-                              (v) => v?.replace(/_/g, ' ') || ''
-                            )}
+                            {container.type?.replace(/_/g, ' ') || ''}
                           </div>
                         </div>
                       </div>
                       <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm border-r transition-colors" style={{ borderColor: 'var(--border-color)' }}>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                          {getChangedValueDisplay(
-                            container.id,
-                            'account',
-                            container.account || 'Storage',
-                            (v) => v || 'Storage'
-                          )}
+                          {container.account || 'Storage'}
                         </span>
                       </div>
                     </div>
@@ -572,15 +724,29 @@ const InventoryView = () => {
                 </div>
               </div>
               <div className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                {currentContainers.map((container, index) => {
+                {currentContainers.map((group, index) => {
+                  const container = group.representative;
                   const calculated = calculateContainerData(container);
                   const product = products.find(p => p.id === container.productId);
+                  const isGroupChanged = group.containers.some(c => isChanged(c.id));
+                  
+                  // For grouped containers, use aggregated data; for individual, use container's own data
+                  const displayData = group.isGrouped 
+                    ? calculateGroupData(group.containers)
+                    : {
+                        avgPercentageFull: calculated.percentageFull,
+                        totalTareWeight: calculated.tareWeight,
+                        totalGrossWeight: calculated.grossWeight,
+                        totalNetWeight: parseFloat(container.netWeight) || 0,
+                        totalWineGallons: calculated.wineGallons,
+                        totalProofGallons: calculated.proofGallons
+                      };
                   
                   return (
                     <div 
-                      key={container.id} 
+                      key={group.key} 
                       className={`flex transition-all h-16 ${
-                        isChanged(container.id) ? 'bg-yellow-900/30' : ''
+                        isGroupChanged ? 'bg-yellow-900/30' : ''
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
@@ -591,74 +757,39 @@ const InventoryView = () => {
                               className={`h-2 ${
                                 container.status === 'FILLED' ? 'bg-yellow-500' : 'bg-gray-400'
                               }`}
-                              style={{ width: `${calculated.percentageFull}%` }}
+                              style={{ width: `${displayData.avgPercentageFull}%` }}
                             ></div>
                           </div>
                           <span className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                            {container.status === 'FILLED' ? `${calculated.percentageFull.toFixed(0)}%` : 'Empty'}
+                            {container.status === 'FILLED' ? `${displayData.avgPercentageFull.toFixed(0)}%` : 'Empty'}
                           </span>
                         </div>
                       </div>
                       <div className="w-32 px-4 flex items-center justify-center whitespace-nowrap">
                         <div className="text-sm text-center transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                          {getChangedValueDisplay(
-                            container.id,
-                            'productName',
-                            product?.name || 'No Product',
-                            (v) => v || 'No Product'
-                          )}
+                          {product?.name || 'No Product'}
                         </div>
                       </div>
                       <div className="w-24 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                        {getChangedValueDisplay(
-                          container.id,
-                          'fillDate',
-                          container.fillDate,
-                          (v) => v ? new Date(v).toLocaleDateString() : 'N/A'
-                        )}
+                        {container.fillDate ? new Date(container.fillDate).toLocaleDateString() : 'N/A'}
                       </div>
                       <div className="w-20 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                        {getChangedValueDisplay(
-                          container.id,
-                          'proof',
-                          container.proof,
-                          (v) => v ? `${v}°` : 'N/A'
-                        )}
+                        {container.proof ? `${container.proof}°` : 'N/A'}
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                        {calculated.tareWeight.toFixed(1)} lbs
+                        {displayData.totalTareWeight.toFixed(1)} lbs
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                        {getChangedValueDisplay(
-                          container.id,
-                          'grossWeight',
-                          calculated.grossWeight,
-                          (v) => v.toFixed(1) + ' lbs'
-                        )}
+                        {displayData.totalGrossWeight.toFixed(1)} lbs
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                        {getChangedValueDisplay(
-                          container.id,
-                          'netWeight',
-                          container.netWeight,
-                          (v) => (v ? Number(v).toFixed(1) : '0.0') + ' lbs'
-                        )}
+                        {displayData.totalNetWeight.toFixed(1)} lbs
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>
-                        {getChangedValueDisplay(
-                          container.id,
-                          'wineGallons',
-                          calculated.wineGallons,
-                          (v) => v.toFixed(2) + ' gal'
-                        )}
+                        {displayData.totalWineGallons.toFixed(2)} gal
                       </div>
                       <div className="w-28 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
-                        {getChangedValueDisplay(
-                          container.id,
-                          'proofGallons',
-                          calculated.proofGallons,
-                          (v) => v.toFixed(2) + ' PG'
-                        )}
+                        {displayData.totalProofGallons.toFixed(2)} PG
                       </div>
                     </div>
                   );
@@ -674,52 +805,59 @@ const InventoryView = () => {
                 </div>
               </div>
               <div className="divide-y overflow-visible transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                {currentContainers.map((container, index) => {
+                {currentContainers.map((group, index) => {
+                  const container = group.representative;
                   const isDropdownOpen = openDropdownId === container.id;
                   // Determine if we're in the last 3 rows to position dropdown above
                   const isNearBottom = index >= currentContainers.length - 3;
                   // For first 3 rows, show tooltips below the dropdown
                   const isNearTop = index < 3;
+                  const isGroupChanged = group.containers.some(c => isChanged(c.id));
                   
                   return (
                     <div 
-                      key={container.id} 
+                      key={group.key} 
                       className={`transition-all h-16 relative ${
-                        isChanged(container.id) ? 'bg-yellow-900/30' : ''
+                        isGroupChanged ? 'bg-yellow-900/30' : ''
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
                       <div className="w-48 px-4 flex items-center justify-center whitespace-nowrap text-sm font-medium border-l h-full transition-colors" style={{ borderColor: 'var(--border-color)' }}>
                         <div className="flex justify-center items-center space-x-2">
-                          {/* Edit and Delete Buttons */}
-                          <ActionButtons
-                            onEdit={() => handleEditContainer(container)}
-                            onDelete={() => {
-                              setItemToDelete(container);
-                              setShowConfirmModal(true);
-                            }}
-                          />
-                          
-                          {/* Actions Dropdown Menu */}
-                          <div className="relative">
-                            <div className="relative inline-block group">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(isDropdownOpen ? null : container.id);
+                          {/* Edit and Delete Buttons - Disabled for grouped containers */}
+                          {group.isGrouped ? (
+                            <span className="text-xs text-gray-500 italic">Grouped containers cannot be modified</span>
+                          ) : (
+                            <ActionButtons
+                              onEdit={() => handleEditContainer(container)}
+                              onDelete={() => {
+                                setItemToDelete(container);
+                                setShowConfirmModal(true);
                               }}
-                              className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
-                            >
-                                <Menu cursor-pointer text-blue-400 hover:text-blue-300 size={16} />
-                              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                Actions
-                              </span>
-                            </div>
-                            {isDropdownOpen && (
+                            />
+                          )}
+                          
+                          {/* Actions Dropdown Menu - Disabled for grouped containers */}
+                          {!group.isGrouped && (
+                            <div className="relative">
+                              <div className="relative inline-block group">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(isDropdownOpen ? null : container.id);
+                                }}
+                                className="text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
+                              >
+                                  <Menu cursor-pointer text-blue-400 hover:text-blue-300 size={16} />
+                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                  Actions
+                                </span>
+                              </div>
+                              {isDropdownOpen && (
                               <div 
                                 onClick={(e) => e.stopPropagation()}
                                 className={`absolute right-0 w-45 bg-gray-700 rounded-md shadow-lg z-[9999] border border-gray-600 ${
@@ -789,8 +927,9 @@ const InventoryView = () => {
                                   </div>
                                 </div>
                               </div>
-                            )}
-                          </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -869,6 +1008,7 @@ const InventoryView = () => {
           }}
           container={editingContainer}
           onSave={handleBottlingSave}
+          onAdd={handleBottlingAdd}
         />
       )}
 
