@@ -83,6 +83,49 @@ const TransferInBoundView = () => {
   const [focusedCountInput, setFocusedCountInput] = useState(null);
   const [showDSPModal, setShowDSPModal] = useState(false);
 
+  // Helper function to save state to sessionStorage
+  const saveStateToSession = useCallback((state) => {
+    try {
+      const stateToSave = {
+        rowData: state.rowData,
+        baseTotalGallons: state.baseTotalGallons,
+        useNew: state.useNew,
+        useOld: state.useOld,
+        selectedNewContainers: state.selectedNewContainers,
+        newContainerCounts: state.newContainerCounts,
+        newContainerNames: state.newContainerNames,
+        selectedOldContainers: state.selectedOldContainers,
+        lostGallons: state.lostGallons,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem('transferInboundState', JSON.stringify(stateToSave));
+    } catch (err) {
+      console.error('Error saving state to sessionStorage:', err);
+    }
+  }, []);
+
+  // Helper function to load state from sessionStorage
+  const loadStateFromSession = useCallback(() => {
+    try {
+      const savedState = sessionStorage.getItem('transferInboundState');
+      if (savedState) {
+        return JSON.parse(savedState);
+      }
+    } catch (err) {
+      console.error('Error loading state from sessionStorage:', err);
+    }
+    return null;
+  }, []);
+
+  // Helper function to clear state from sessionStorage
+  const clearStateFromSession = useCallback(() => {
+    try {
+      sessionStorage.removeItem('transferInboundState');
+    } catch (err) {
+      console.error('Error clearing state from sessionStorage:', err);
+    }
+  }, []);
+
   const fetchTransferInbound = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -109,33 +152,81 @@ const TransferInBoundView = () => {
         calculatedNextNumber = maxNumber + 1;
       }
       
-      // If there's existing data, load the first one
-      if (transfers && Array.isArray(transfers) && transfers.length > 0) {
-        const transfer = transfers[0];
-        const totalGallonsValue = transfer.volumeGallons?.toString() || '';
-        setRowData({
-          tibInNumber: calculatedNextNumber.toString(), // Always use calculated next number
-          spiritType: transfer.productId?.toString() || '',
-          fromDSP: transfer.destination || '',
-          totalGallons: totalGallonsValue,
-          reason: transfer.notes || '',
-          totalSpiritCost: '', // Not in model yet
-          shippingCost: transfer.carrier || '',
-          sealNumber: transfer.sealNumber || '',
-          transferDate: transfer.transferDate ? formatDateTimeLocal(new Date(transfer.transferDate)) : getTodayDateTime(),
-        });
-        // Set baseTotalGallons when loading data
-        if (totalGallonsValue) {
-          setBaseTotalGallons(totalGallonsValue);
-        }
-        // Reset lost gallons when loading new data
-        setLostGallons(0);
-      } else {
-        // If no existing data, set the auto-generated TIB In Number
-        setRowData(prev => ({
-          ...prev,
+      // Check for incomplete work in sessionStorage
+      const savedState = loadStateFromSession();
+      const hasIncompleteWork = savedState && savedState.baseTotalGallons && 
+        parseFloat(savedState.baseTotalGallons) > 0;
+      
+      // If there's incomplete work, restore it
+      if (hasIncompleteWork) {
+        setRowData(savedState.rowData || {
           tibInNumber: calculatedNextNumber.toString(),
-        }));
+          spiritType: '',
+          fromDSP: '',
+          totalGallons: '',
+          reason: '',
+          totalSpiritCost: '',
+          shippingCost: '',
+          sealNumber: '',
+          transferDate: getTodayDateTime(),
+        });
+        if (savedState.baseTotalGallons) {
+          setBaseTotalGallons(savedState.baseTotalGallons);
+        }
+        setUseNew(savedState.useNew || false);
+        setUseOld(savedState.useOld || false);
+        setSelectedNewContainers(savedState.selectedNewContainers || {
+          Barrel: false,
+          Tote: false,
+          Tank: false,
+        });
+        setNewContainerCounts(savedState.newContainerCounts || {
+          Barrel: 0,
+          Tote: 0,
+          Tank: 0,
+        });
+        setNewContainerNames(savedState.newContainerNames || {
+          Barrel: '',
+          Tote: '',
+          Tank: '',
+        });
+        setSelectedOldContainers(savedState.selectedOldContainers || []);
+        setLostGallons(savedState.lostGallons || 0);
+      } else {
+        // No incomplete work - clear specified fields
+        setRowData({
+          tibInNumber: calculatedNextNumber.toString(),
+          spiritType: '',
+          fromDSP: '',
+          totalGallons: '', // Clear
+          reason: '', // Clear
+          totalSpiritCost: '',
+          shippingCost: '', // Clear
+          sealNumber: '', // Clear
+          transferDate: getTodayDateTime(),
+        });
+        setBaseTotalGallons('');
+        setUseNew(false);
+        setUseOld(false);
+        setSelectedNewContainers({
+          Barrel: false,
+          Tote: false,
+          Tank: false,
+        });
+        setNewContainerCounts({
+          Barrel: 0,
+          Tote: 0,
+          Tank: 0,
+        });
+        setNewContainerNames({
+          Barrel: '',
+          Tote: '',
+          Tank: '',
+        });
+        setSelectedOldContainers([]);
+        setLostGallons(0);
+        // Clear sessionStorage
+        clearStateFromSession();
       }
       setError('');
     } catch (err) {
@@ -144,7 +235,7 @@ const TransferInBoundView = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [loadStateFromSession, clearStateFromSession]);
 
   useEffect(() => {
     fetchTransferInbound();
@@ -329,11 +420,47 @@ const TransferInBoundView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowData.totalGallons]);
 
+  // Save state to sessionStorage whenever container selections change
+  useEffect(() => {
+    // Only save if there's actual work (baseTotalGallons > 0)
+    if (baseTotalGallons && parseFloat(baseTotalGallons) > 0) {
+      saveStateToSession({
+        rowData,
+        baseTotalGallons,
+        useNew,
+        useOld,
+        selectedNewContainers,
+        newContainerCounts,
+        newContainerNames,
+        selectedOldContainers,
+        lostGallons
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNewContainers, newContainerCounts, newContainerNames, selectedOldContainers, lostGallons, baseTotalGallons]);
+
   const handleCellChange = (field, value) => {
-    setRowData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setRowData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      // Save state to sessionStorage on change
+      setTimeout(() => {
+        saveStateToSession({
+          rowData: newData,
+          baseTotalGallons,
+          useNew,
+          useOld,
+          selectedNewContainers,
+          newContainerCounts,
+          newContainerNames,
+          selectedOldContainers,
+          lostGallons
+        });
+      }, 0);
+      return newData;
+    });
   };
 
   const handleUseNewChange = (checked) => {
@@ -346,6 +473,20 @@ const TransferInBoundView = () => {
         Tank: false,
       });
     }
+    // Save state after change
+    setTimeout(() => {
+      saveStateToSession({
+        rowData,
+        baseTotalGallons,
+        useNew: checked,
+        useOld,
+        selectedNewContainers: checked ? selectedNewContainers : { Barrel: false, Tote: false, Tank: false },
+        newContainerCounts,
+        newContainerNames,
+        selectedOldContainers,
+        lostGallons
+      });
+    }, 0);
   };
 
   const handleUseOldChange = (checked) => {
@@ -354,6 +495,20 @@ const TransferInBoundView = () => {
       // Reset selections when unchecked
       setSelectedOldContainers([]);
     }
+    // Save state after change
+    setTimeout(() => {
+      saveStateToSession({
+        rowData,
+        baseTotalGallons,
+        useNew,
+        useOld: checked,
+        selectedNewContainers,
+        newContainerCounts,
+        newContainerNames,
+        selectedOldContainers: checked ? selectedOldContainers : [],
+        lostGallons
+      });
+    }, 0);
   };
 
   const handleNewContainerToggle = (containerName) => {
@@ -765,6 +920,9 @@ const TransferInBoundView = () => {
         setLostGallons(remainingGallons);
       }
 
+      // Clear sessionStorage on successful save
+      clearStateFromSession();
+      
       setError('');
       // Show success message
       if (wasUpdated) {
