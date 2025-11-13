@@ -58,7 +58,7 @@ export const Dashboard = ({ inventory }) => {
         </div>
         <div className="p-4 rounded-lg text-center transition-colors hover:scale-105" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
           <p className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>Total Weight Lbs</p>
-          <p className="text-3xl font-bold transition-colors" style={{ color: 'var(--text-primary)' }}>{stats.totalWeightLbs}</p>
+          <p className="text-3xl font-bold transition-colors" style={{ color: 'var(--text-primary)' }}>{stats.totalWeightLbs.toFixed(2)}</p>
         </div>
         <div className="p-4 rounded-lg text-center transition-colors hover:scale-105" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
           <p className="text-sm transition-colors" style={{ color: 'var(--text-secondary)' }}>Empty Containers</p>
