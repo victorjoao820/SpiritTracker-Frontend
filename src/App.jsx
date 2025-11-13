@@ -18,8 +18,8 @@ import ProductTypeView from "./components/views/ProductTypeView";
 import ContainerTypeView from "./components/views/ContainerTypeView";
 import FermentersView from "./components/views/FermenterView";
 import TransferInBoundView from "./components/views/TransferInBoundView";
+import TransferOutBoundView from "./components/views/TransferOutBoundView";
 import DSPView from "./components/views/DSPView";
-// import TransferOutboundView from "./components/views/TransferOutboundView";
 
 const ReportsView = () => (
   <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
@@ -109,13 +109,13 @@ function AppContent() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      {/* <Route path="/transfer/outbound" element={
+      <Route path="/transfer/outbound" element={
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <TransferOutboundView />
+            <TransferOutBoundView />
           </AuthenticatedLayout>
         </ProtectedRoute>
-      } /> */}
+      } />
 
       <Route path="/transactions" element={
         <ProtectedRoute>

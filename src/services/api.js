@@ -484,6 +484,37 @@ export const transferInboundAPI = {
   },
 };
 
+export const transferOutboundAPI = {
+  // Get all transfer outbound batches
+  getAll: async () => {
+    return apiRequest('/transfers/outbound');
+  },
+  // Get single transfer outbound
+  getById: async (id) => {
+    return apiRequest(`/transfers/outbound/${id}`);
+  },
+  // Create transfer outbound
+  create: async (transferOutboundData) => {
+    return apiRequest('/transfers/outbound', {
+      method: 'POST',
+      body: JSON.stringify(transferOutboundData),
+    });
+  },
+  // Update transfer outbound
+  update: async (id, transferOutboundData) => {
+    return apiRequest(`/transfers/outbound/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(transferOutboundData),
+    });
+  },
+  // Delete transfer outbound
+  delete: async (id) => {
+    return apiRequest(`/transfers/outbound/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 
 // Transactions API
 export const transactionsAPI = {
