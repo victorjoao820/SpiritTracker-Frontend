@@ -779,10 +779,10 @@ const TransferInBoundView = () => {
                 const defaultProof = 0; // Default proof, can be updated later
                 const defaultTemp = 60; // Default temperature
                 
-                // Create full containers
-                for (let i = 0; i < fullContainers; i++) {
+                // Create ONE container record to represent all full containers of the same type
+                if (fullContainers > 0) {
                   try {
-                    // Calculate netWeight from capacity (wine gallons)
+                    // Calculate netWeight for one full container (wine gallons)
                     const wineGallons = capacity;
                     const calculated = calculateDerivedValuesFromWineGallons(
                       wineGallons,
@@ -792,7 +792,7 @@ const TransferInBoundView = () => {
                     );
                     
                     const containerData = {
-                      name: containerName || `${containerType.type}-${i + 1}`,
+                      name: containerName || `${containerType.type}-1`,
                       type: containerType.type,
                       containerKindId: kind.id,
                       productId: rowData.spiritType || null,
@@ -801,17 +801,18 @@ const TransferInBoundView = () => {
                       tareWeight: tareWeight,
                       netWeight: calculated.netWeightLbs,
                       fillDate: rowData.transferDate ? new Date(rowData.transferDate) : new Date(),
-                      notes: `Created from Transfer Inbound TIB-${rowData.tibInNumber}`
+                      notes: `Created from Transfer Inbound TIB-${rowData.tibInNumber}`,
+                      sameCount: fullContainers > 1 ? fullContainers : null
                     };
                     
                     const newContainer = await containersAPI.create(containerData);
                     createdContainerIds.push(newContainer.id);
                   } catch (err) {
-                    console.error(`Error creating container ${i + 1} of ${containerType.name}:`, err);
+                    console.error(`Error creating container for ${containerType.name}:`, err);
                   }
                 }
                 
-                // Create partial container if there's a partial amount
+                // Create partial container if there's a partial amount (separate record)
                 if (partialAmount > 0.01) {
                   try {
                     // Calculate netWeight from partial amount (wine gallons)
@@ -833,7 +834,8 @@ const TransferInBoundView = () => {
                       tareWeight: tareWeight,
                       netWeight: calculated.netWeightLbs,
                       fillDate: rowData.transferDate ? new Date(rowData.transferDate) : new Date(),
-                      notes: `Created from Transfer Inbound TIB-${rowData.tibInNumber} (Partial: ${partialAmount.toFixed(2)}gal)`
+                      notes: `Created from Transfer Inbound TIB-${rowData.tibInNumber} (Partial: ${partialAmount.toFixed(2)}gal)`,
+                      sameCount: null // Partial container is always individual
                     };
                     
                     const newContainer = await containersAPI.create(containerData);

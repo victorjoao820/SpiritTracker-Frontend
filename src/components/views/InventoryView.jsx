@@ -90,16 +90,26 @@ const InventoryView = () => {
   }, {});
   
   // Convert grouped containers to array of group objects
-  const transferContainerGroups = Object.entries(groupedTransferContainers).map(([key, containers]) => ({
-    key,
-    containers,
-    containerKindId: containers[0]?.containerKindId,
-    type: containers[0]?.type,
-    count: containers.length,
-    isGrouped: true, // Mark as grouped
-    // Use first container as representative for display
-    representative: containers[0]
-  }));
+  const transferContainerGroups = Object.entries(groupedTransferContainers).map(([key, containers]) => {
+    const firstContainer = containers[0];
+    // Use sameCount if available - this represents how many containers this record represents
+    const sameCount = firstContainer?.sameCount ? parseFloat(firstContainer.sameCount) : null;
+    // If sameCount exists, use it as the count; otherwise use actual container count
+    const displayCount = sameCount || containers.length;
+    
+    return {
+      key,
+      containers,
+      containerKindId: firstContainer?.containerKindId,
+      type: firstContainer?.type,
+      count: containers.length, // Actual container records
+      sameCount: sameCount, // Number of containers represented (if exists)
+      displayCount: displayCount, // Count to display
+      isGrouped: true, // Mark as grouped
+      // Use first container as representative for display
+      representative: firstContainer
+    };
+  });
   
   // Convert individual containers to group-like objects (single container per group)
   const individualContainerGroups = individualContainers.map(container => ({
@@ -538,51 +548,83 @@ const InventoryView = () => {
   const isChanged = (containerId) => changedContainerIds.includes(containerId);
   
   // Helper function to calculate aggregated data for a group of containers
-  const calculateGroupData = (containers) => {
+  const calculateGroupData = (containers, sameCount = null) => {
     if (containers.length === 0) return null;
     
-    const totalTareWeight = containers.reduce((sum, c) => {
-      const calculated = calculateContainerData(c);
-      return sum + calculated.tareWeight;
-    }, 0);
+    const firstContainer = containers[0];
+    const calculated = calculateContainerData(firstContainer);
     
-    const totalGrossWeight = containers.reduce((sum, c) => {
-      const calculated = calculateContainerData(c);
-      return sum + calculated.grossWeight;
-    }, 0);
-    
-    const totalNetWeight = containers.reduce((sum, c) => {
-      return sum + (parseFloat(c.netWeight) || 0);
-    }, 0);
-    
-    const totalWineGallons = containers.reduce((sum, c) => {
-      const calculated = calculateContainerData(c);
-      return sum + calculated.wineGallons;
-    }, 0);
-    
-    const totalProofGallons = containers.reduce((sum, c) => {
-      const calculated = calculateContainerData(c);
-      return sum + calculated.proofGallons;
-    }, 0);
-    
-    // Average percentage full
-    const avgPercentageFull = containers.reduce((sum, c) => {
-      const calculated = calculateContainerData(c);
-      return sum + calculated.percentageFull;
-    }, 0) / containers.length;
-    
-    // Use first container as representative for status, product, fillDate, proof
-    const representative = containers[0];
-    
-    return {
-      totalTareWeight,
-      totalGrossWeight,
-      totalNetWeight,
-      totalWineGallons,
-      totalProofGallons,
-      avgPercentageFull,
-      representative
-    };
+    // If sameCount exists, multiply by sameCount; otherwise sum all containers
+    if (sameCount && sameCount > 1) {
+      // Single container record representing multiple containers
+      const capacity = firstContainer.containerKind?.capacityGallons || 0;
+      const netWeight = firstContainer.netWeight ? Number(firstContainer.netWeight) : 0;
+      const tareWeight = firstContainer.tareWeight ? Number(firstContainer.tareWeight) : 0;
+      const proof = firstContainer.proof ? Number(firstContainer.proof) : 0;
+      
+      // Calculate totals by multiplying by sameCount
+      const totalTareWeight = tareWeight * sameCount;
+      const totalNetWeight = netWeight * sameCount;
+      const totalGrossWeight = (tareWeight + netWeight) * sameCount;
+      
+      // Wine gallons = capacity * sameCount (if all full) or calculate from netWeight
+      const totalWineGallons = calculated.wineGallons * sameCount;
+      const totalProofGallons = calculated.proofGallons * sameCount;
+      
+      // Percentage full is the same for all containers in the group
+      const avgPercentageFull = calculated.percentageFull;
+      
+      return {
+        totalTareWeight,
+        totalGrossWeight,
+        totalNetWeight,
+        totalWineGallons,
+        totalProofGallons,
+        avgPercentageFull,
+        representative: firstContainer
+      };
+    } else {
+      // Multiple container records - sum them up
+      const totalTareWeight = containers.reduce((sum, c) => {
+        const calc = calculateContainerData(c);
+        return sum + calc.tareWeight;
+      }, 0);
+      
+      const totalGrossWeight = containers.reduce((sum, c) => {
+        const calc = calculateContainerData(c);
+        return sum + calc.grossWeight;
+      }, 0);
+      
+      const totalNetWeight = containers.reduce((sum, c) => {
+        return sum + (parseFloat(c.netWeight) || 0);
+      }, 0);
+      
+      const totalWineGallons = containers.reduce((sum, c) => {
+        const calc = calculateContainerData(c);
+        return sum + calc.wineGallons;
+      }, 0);
+      
+      const totalProofGallons = containers.reduce((sum, c) => {
+        const calc = calculateContainerData(c);
+        return sum + calc.proofGallons;
+      }, 0);
+      
+      // Average percentage full
+      const avgPercentageFull = containers.reduce((sum, c) => {
+        const calc = calculateContainerData(c);
+        return sum + calc.percentageFull;
+      }, 0) / containers.length;
+      
+      return {
+        totalTareWeight,
+        totalGrossWeight,
+        totalNetWeight,
+        totalWineGallons,
+        totalProofGallons,
+        avgPercentageFull,
+        representative: firstContainer
+      };
+    }
   };
 
 
@@ -668,14 +710,19 @@ const InventoryView = () => {
                         <div className="text-center">
                           <div className="text-sm font-medium transition-colors" style={{ color: 'var(--text-primary)' }}>
                             {container.name || 'Unnamed'}
-                            {group.isGrouped && group.count > 1 && (
+                            {group.sameCount && group.sameCount > 1 && (
+                              <span className="ml-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                (*{group.sameCount})
+                              </span>
+                            )}
+                            {group.isGrouped && !group.sameCount && group.count > 1 && (
                               <span className="ml-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                 (x{group.count})
                               </span>
                             )}
                           </div>
                           <div className="text-xs capitalize transition-colors" style={{ color: 'var(--text-tertiary)' }}>
-                            {container.type?.replace(/_/g, ' ') || ''}
+                            {container.containerKind?.name || container.type?.replace(/_/g, ' ') || ''}
                           </div>
                         </div>
                       </div>
@@ -732,7 +779,7 @@ const InventoryView = () => {
                   
                   // For grouped containers, use aggregated data; for individual, use container's own data
                   const displayData = group.isGrouped 
-                    ? calculateGroupData(group.containers)
+                    ? calculateGroupData(group.containers, group.sameCount)
                     : {
                         avgPercentageFull: calculated.percentageFull,
                         totalTareWeight: calculated.tareWeight,

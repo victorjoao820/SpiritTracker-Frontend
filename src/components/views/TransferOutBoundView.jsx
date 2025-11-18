@@ -23,10 +23,8 @@ const getTodayDateTime = () => {
 const TransferOutBoundView = () => {
   // Reason options
   const reasonOptions = [
-    { value: 'PRODUCTION', label: 'Production' },
-    { value: 'AGING', label: 'Aging' },
-    { value: 'BLENDING', label: 'Blending' },
-    { value: 'STORAGE', label: 'Storage' },
+    { value: 'BULK SALE', label: 'Spirit Sale' },
+    { value: 'PRODUCTION SALE', label: 'Production Sale' },
     { value: 'RETURN', label: 'Return' },
     { value: 'OTHER', label: 'Other' },
   ];
@@ -107,8 +105,11 @@ const TransferOutBoundView = () => {
     try {
       setIsLoading(true);
       const containersData = await containersAPI.getAll();
-      // Filter only FILLED containers
-      const filled = containersData.filter(container => container.status === 'FILLED');
+      // Filter only FILLED containers that haven't been transferred
+      const filled = containersData.filter(container => 
+        container.status === 'FILLED' && 
+        !(container.notes && container.notes.includes('Transferred out TOB-'))
+      );
       setContainers(filled);
     } catch (err) {
       console.error('Error fetching containers:', err);
@@ -137,11 +138,30 @@ const TransferOutBoundView = () => {
     return match ? match[1] : null;
   };
 
+  // Filter containers based on selected reason
+  const filteredContainers = containers.filter(container => {
+    // If no reason selected, show all containers
+    if (!formData.reason) return true;
+    
+    // If "BULK SALE" is selected, show only containers from Transfer Inbound
+    if (formData.reason === 'BULK SALE') {
+      return isFromTransferInbound(container);
+    }
+    
+    // If "PRODUCTION SALE" is selected, show only production containers (NOT from Transfer Inbound)
+    if (formData.reason === 'PRODUCTION SALE') {
+      return !isFromTransferInbound(container);
+    }
+    
+    // For other reasons (RETURN, OTHER), show all containers
+    return true;
+  });
+
   // Separate containers: those from Transfer Inbound (to be grouped) and others (individual)
   const transferInboundContainers = [];
   const individualContainers = [];
   
-  containers.forEach(container => {
+  filteredContainers.forEach(container => {
     if (isFromTransferInbound(container)) {
       transferInboundContainers.push(container);
     } else {
@@ -162,16 +182,25 @@ const TransferOutBoundView = () => {
   }, {});
 
   // Convert grouped containers to array of group objects
-  const transferContainerGroups = Object.entries(groupedTransferContainers).map(([key, containers]) => ({
-    key,
-    containers,
-    containerKindId: containers[0]?.containerKindId,
-    type: containers[0]?.type,
-    count: containers.length,
-    isGrouped: true, // Mark as grouped
-    // Use first container as representative for display
-    representative: containers[0]
-  }));
+  const transferContainerGroups = Object.entries(groupedTransferContainers).map(([key, containers]) => {
+    const firstContainer = containers[0];
+    // Use sameCount if available - this represents how many containers this record represents
+    const sameCount = firstContainer?.sameCount ? parseFloat(firstContainer.sameCount) : null;
+    // If sameCount exists, use it as the available count; otherwise use actual container count
+    const availableCount = sameCount || containers.length;
+    
+    return {
+      key,
+      containers,
+      containerKindId: firstContainer?.containerKindId,
+      type: firstContainer?.type,
+      count: availableCount, // Available containers (from sameCount or actual count)
+      sameCount: sameCount, // Original total count from creation (if exists)
+      isGrouped: true, // Mark as grouped
+      // Use first container as representative for display
+      representative: firstContainer
+    };
+  });
 
   // Convert individual containers to group-like objects (single container per group)
   const individualContainerGroups = individualContainers.map(container => ({
@@ -210,6 +239,12 @@ const TransferOutBoundView = () => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1); // Reset to first page when changing items per page
   };
+
+  // Reset to first page and clear selections when reason changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedContainers({}); // Clear selections when reason changes
+  }, [formData.reason]);
 
   // Reset to first page when containers change
   useEffect(() => {
@@ -318,43 +353,100 @@ const TransferOutBoundView = () => {
         return;
       }
 
-      // Create transfer for each selected container group
+      // Create ONE transfer per selected container group
       const transferPromises = [];
+      const containerUpdatePromises = [];
       
       Object.entries(selectedContainers).forEach(([groupKey, data]) => {
         // Find the group
         const group = containerGroups.find(g => g.key === groupKey);
         if (!group) return;
 
-        // For each container in the group, create a transfer
-        group.containers.forEach((container) => {
-          // Calculate volume gallons from container if available
-          const containerKind = container.containerKind;
-          const capacityGallons = containerKind?.capacityGallons ? parseFloat(containerKind.capacityGallons) : 0;
-          const volumeGallons = capacityGallons * data.count;
+        const selectedCount = data.count || 1;
+        const totalAvailable = group.count; // Available containers (from sameCount or actual count)
+        const originalTotalCount = group.sameCount || totalAvailable;
+        
+        // Validate selected count doesn't exceed available
+        const actualSelectedCount = Math.min(selectedCount, totalAvailable);
+        const remainingCount = totalAvailable - actualSelectedCount;
+        
+        // Get the container record(s) - if sameCount exists, we're working with one record representing multiple
+        const containerRecord = group.containers[0];
+        const containerKind = containerRecord.containerKind;
+        const capacityGallons = containerKind?.capacityGallons ? parseFloat(containerKind.capacityGallons) : 0;
+        
+        // Calculate total volume gallons: capacity * number of containers being transferred
+        const totalVolumeGallons = capacityGallons * actualSelectedCount;
+        const containerName = containerRecord.name || 'Unnamed';
+        const containerType = containerRecord.type || 'container';
+        const containerKindName = containerKind?.name || containerType;
+        
+        // Build detailed notes with container information
+        let notes = `${formData.reason}${formData.note ? ` | ${formData.note}` : ''}`;
+        notes += ` | Container Group: ${containerKindName}`;
+        notes += ` | Count: ${actualSelectedCount}${originalTotalCount > actualSelectedCount ? ` of ${originalTotalCount}` : ''}`;
+        notes += ` | Container: ${containerName}`;
+        if (data.cost > 0) notes += ` | Cost: ${data.cost}`;
+        if (data.shippingCost > 0) notes += ` | Shipping Cost: ${data.shippingCost}`;
+        if (remainingCount > 0) {
+          notes += ` | Remaining: ${remainingCount}`;
+        }
+        
+        // Create ONE transfer for this group
+        const transferData = {
+          transferNumber: formData.tibOutNumber,
+          transferType: 'CONTAINER',
+          direction: 'OUTBOUND',
+          containerId: containerRecord.id, // Reference to container record
+          destination: formData.toDSP,
+          volumeGallons: totalVolumeGallons,
+          proof: containerRecord.proof || 0,
+          transferDate: new Date(formData.timestamp).toISOString(),
+          carrier: formData.conveyance,
+          notes: notes
+        };
 
-          const transferData = {
-            transferNumber: formData.tibOutNumber,
-            transferType: 'CONTAINER',
-            direction: 'OUTBOUND',
-            containerId: container.id,
-            destination: formData.toDSP,
-            volumeGallons: volumeGallons,
-            proof: container.proof || 0,
-            transferDate: new Date(formData.timestamp).toISOString(),
-            carrier: formData.conveyance,
-            notes: `${formData.reason}${formData.note ? ` | ${formData.note}` : ''} | Count: ${data.count}, Cost: ${data.cost}, Shipping Cost: ${data.shippingCost}`
-          };
-
-          transferPromises.push(transferOutboundAPI.create(transferData));
-        });
+        transferPromises.push(transferOutboundAPI.create(transferData));
+        
+        // Update container based on whether all or partial transfer
+        if (remainingCount > 0) {
+          // Partial transfer: update sameCount to remaining count
+          const transferNote = `Transferred out TOB-${formData.tibOutNumber} on ${new Date(formData.timestamp).toLocaleDateString()} (${actualSelectedCount} of ${originalTotalCount})`;
+          const updatedNotes = containerRecord.notes 
+            ? `${containerRecord.notes}; ${transferNote}`
+            : transferNote;
+          
+          containerUpdatePromises.push(
+            containersAPI.update(containerRecord.id, {
+              sameCount: remainingCount,
+              notes: updatedNotes
+            })
+          );
+        } else {
+          // All containers transferred: mark as transferred
+          const transferNote = `Transferred out TOB-${formData.tibOutNumber} on ${new Date(formData.timestamp).toLocaleDateString()}`;
+          const updatedNotes = containerRecord.notes 
+            ? `${containerRecord.notes}; ${transferNote}`
+            : transferNote;
+          
+          containerUpdatePromises.push(
+            containersAPI.update(containerRecord.id, {
+              notes: updatedNotes
+            })
+          );
+        }
       });
 
-      await Promise.all(transferPromises);
+      // Execute all transfers and container updates
+      await Promise.all([...transferPromises, ...containerUpdatePromises]);
+      
+      // Refresh containers list to reflect changes
+      await fetchContainers();
 
       setError('');
-      const selectedCount = Object.keys(selectedContainers).length;
-      setSuccessMessage(`Transfer TOB-${formData.tibOutNumber} has been created successfully for ${selectedCount} container(s).`);
+      const selectedGroupCount = Object.keys(selectedContainers).length;
+      const totalContainersTransferred = Object.values(selectedContainers).reduce((sum, data) => sum + (data.count || 1), 0);
+      setSuccessMessage(`Transfer TOB-${formData.tibOutNumber} has been created successfully for ${selectedGroupCount} group(s) (${totalContainersTransferred} container(s) total).`);
       
       // Clear form after successful save
       setFormData({
@@ -606,9 +698,14 @@ const TransferOutBoundView = () => {
                             <div>
                               <div className="font-medium">
                                 {container.name || 'Unnamed'}
-                                {group.isGrouped && group.count > 1 && (
+                                {group.isGrouped && (
                                   <span className="ml-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                    (x{group.count})
+                                    {group.sameCount && group.sameCount > group.count 
+                                      ? `(${group.count} of ${group.sameCount})`
+                                      : group.count > 1 
+                                        ? `(x${group.count})`
+                                        : ''
+                                    }
                                   </span>
                                 )}
                                 {isSelected && selectedCount > 0 && (
@@ -638,6 +735,7 @@ const TransferOutBoundView = () => {
                               style={{ backgroundColor: isSelected ? 'var(--bg-accent)' : 'var(--bg-readable)', color:'var(--text-primary)'}}
                               className="w-20 p-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
                               placeholder="1"
+                              title={group.sameCount ? `Available: ${group.count} of ${group.sameCount} total` : `Available: ${group.count}`}
                             />
                           </td>
                           <td className="px-3 py-2">
