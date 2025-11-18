@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { logTransaction, calcGallonsFromWeight, calculateSpiritDensity } from "../../utils/helpers";
-import { TRANSACTION_TYPES } from "../../constants";
+import { TRANSACTION_TYPES, DENSITY_WATER_LBS_PER_GALLON } from "../../constants";
 
 // --- ProofDownModal ---
 export const ProofDownModal = ({
@@ -160,29 +160,45 @@ export const ProofDownModal = ({
           </div>
 
           {/* Calculated Values Display */}
-          {targetProof && parseFloat(targetProof) > 0 && parseFloat(targetProof) < parseFloat(container.proof) && (
-            <div className="bg-blue-900 p-4 rounded border border-blue-700">
-              <h3 className="text-sm font-medium text-blue-300 mb-3">New Values After Proof Down:</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-blue-800 p-2 rounded">
-                  <p className="text-blue-200 font-medium">Add Water:</p>
-                  <p className="text-blue-100">{calculatedValues.addWater.toFixed(2)} gallons</p>
-                </div>
-                <div className="bg-blue-800 p-2 rounded">
-                  <p className="text-blue-200 font-medium">Final Wine Gallons:</p>
-                  <p className="text-blue-100">{calculatedValues.finalWineGallons.toFixed(2)} gallons</p>
-                </div>
-                <div className="bg-blue-800 p-2 rounded">
-                  <p className="text-blue-200 font-medium">Final Gross Weight:</p>
-                  <p className="text-blue-100">{calculatedValues.finalGrossWeight.toFixed(2)} lbs</p>
-                </div>
-                <div className="bg-blue-800 p-2 rounded">
-                  <p className="text-blue-200 font-medium">Final Proof Gallons:</p>
-                  <p className="text-blue-100">{calculatedValues.finalProofGallons.toFixed(2)} gallons</p>
+          {targetProof && parseFloat(targetProof) > 0 && parseFloat(targetProof) < parseFloat(container.proof) && (() => {
+            const targetProofNum = parseFloat(targetProof);
+            const temperature = container.temperatureFahrenheit || 60;
+            // Calculate pounds for each value
+            const addWaterLbs = calculatedValues.addWater * DENSITY_WATER_LBS_PER_GALLON;
+            const finalGrossWeightGallons = calculatedValues.finalWineGallons; // Gross weight in gallons (net weight gallons, since tare doesn't add volume)
+            
+            return (
+              <div className="bg-blue-900 p-4 rounded border border-blue-700">
+                <h3 className="text-sm font-medium text-blue-300 mb-3">New Values After Proof Down:</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-blue-800 p-2 rounded">
+                    <p className="text-blue-200 font-medium">Add Water:</p>
+                    <p className="text-blue-100">
+                      {calculatedValues.addWater.toFixed(2)} gal / {addWaterLbs.toFixed(2)} lbs
+                    </p>
+                  </div>
+                  <div className="bg-blue-800 p-2 rounded">
+                    <p className="text-blue-200 font-medium">Final Wine Gallons:</p>
+                    <p className="text-blue-100">
+                      {calculatedValues.finalWineGallons.toFixed(2)} gal
+                    </p>
+                  </div>
+                  <div className="bg-blue-800 p-2 rounded">
+                    <p className="text-blue-200 font-medium">Final Gross Weight:</p>
+                    <p className="text-blue-100">
+                      {finalGrossWeightGallons.toFixed(2)} gal 
+                    </p>
+                  </div>
+                  <div className="bg-blue-800 p-2 rounded">
+                    <p className="text-blue-200 font-medium">Final Proof Gallons:</p>
+                    <p className="text-blue-100">
+                      {calculatedValues.finalProofGallons.toFixed(2)} gal
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         <div className="flex justify-end space-x-3 mt-6">
