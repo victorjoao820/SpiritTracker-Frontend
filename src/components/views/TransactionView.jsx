@@ -1,20 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { transactionsAPI } from '../../services/api';
+import { transactionsAPI, transferInboundAPI, transferOutboundAPI } from '../../services/api';
 import { AlertTriangle, RotateCcw, Trash2, FileText } from 'lucide-react';
 import Pagination from '../parts/shared/Pagination';
 import Button from '../ui/Button';
 
 const TransactionView = () => {
   const [transactions, setTransactions] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [logType, setLogType] = useState('Inventory Log');
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    const loadData = async () => {
+      if (logType === 'TIB In Log' || logType === 'TIB Out Log' || logType === 'Ware Log') {
+        try {
+          setIsLoading(true);
+          if (logType === 'TIB In Log') {
+            const response = await transferInboundAPI.getAll();
+            const transfersData = response.transfers || response || [];
+            setTransfers(transfersData);
+          } else if (logType === 'TIB Out Log') {
+            const response = await transferOutboundAPI.getAll();
+            const transfersData = response.transfers || response || [];
+            setTransfers(transfersData);
+          } else if (logType === 'Ware Log') {
+            // Fetch both transactions (for bottling) and outbound transfers (for PRODUCTION SALE)
+            const [transactionsResponse, transfersResponse] = await Promise.all([
+              transactionsAPI.getAll({ limit: 1000 }),
+              transferOutboundAPI.getAll()
+            ]);
+            const transactionsData = transactionsResponse.transactions || transactionsResponse || [];
+            setTransactions(transactionsData);
+            const transfersData = transfersResponse.transfers || transfersResponse || [];
+            setTransfers(transfersData);
+          }
+          setError('');
+        } catch (err) {
+          console.error('Error fetching data:', err);
+          setError('Failed to fetch data.');
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        await fetchTransactions();
+      }
+    };
+    loadData();
+  }, [logType]);
 
   const fetchTransactions = async () => {
     try {
@@ -30,21 +66,120 @@ const TransactionView = () => {
     }
   };
 
+
   const toggleSort = () => {
     setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
     setCurrentPage(1);
   };
 
-  const sortedTransactions = [...transactions].sort((a, b) => {
+  // Helper function to check if transaction is from Transfer Inbound
+  const isTransferInboundTransaction = (transaction) => {
+    const notes = transaction.notes || '';
+    const containerNotes = transaction.container?.notes || '';
+    // Check if notes contain TIB- or Transfer Inbound references
+    return notes.includes('TIB-') || 
+           notes.includes('Transfer Inbound') || 
+           notes.includes('Created from Transfer Inbound') ||
+           notes.includes('Filled from Transfer Inbound') ||
+           containerNotes.includes('Created from Transfer Inbound TIB-') ||
+           containerNotes.includes('Filled from Transfer Inbound TIB-');
+  };
+
+  // Helper function to check if transaction is from Transfer Outbound
+  const isTransferOutboundTransaction = (transaction) => {
+    const notes = transaction.notes || '';
+    const containerNotes = transaction.container?.notes || '';
+    // Check if notes contain TOB- or Transfer Outbound references
+    return notes.includes('TOB-') || 
+           notes.includes('Transfer Outbound') ||
+           notes.includes('Transferred out TOB-') ||
+           containerNotes.includes('Transferred out TOB-');
+  };
+
+  // Filter transactions based on selected log type
+  const filterTransactions = (transactions) => {
+    if (logType === 'Inventory Log') {
+      // Show all transactions except TIB In/Out, Production (Fermentation/Distillation), and Bottling
+      return transactions.filter(t => {
+        const isTIBIn = isTransferInboundTransaction(t);
+        const isTIBOut = isTransferOutboundTransaction(t);
+        const isProduction = ['FERMENTATION_FINISH', 'FERMENTATION_START', 'DISTILLATION_FINISH', 'DISTILLATION_START'].includes(t.transactionType);
+        const isBottling = ['BOTTLE_KEEP', 'BOTTLE_EMPTY', 'BOTTLING_GAIN', 'BOTTLING_LOSS'].includes(t.transactionType);
+        return !isTIBIn && !isTIBOut && !isProduction && !isBottling;
+      });
+    } else if (logType === 'Ware Log') {
+      // Show only bottling transactions
+      return transactions.filter(t => {
+        return ['BOTTLE_KEEP', 'BOTTLE_EMPTY', 'BOTTLING_GAIN', 'BOTTLING_LOSS'].includes(t.transactionType);
+      });
+    }
+    return transactions;
+  };
+
+  // Convert transfer to display format (similar to transaction format)
+  const convertTransferToDisplay = (transfer) => {
+    // Calculate proof gallons: volumeGallons * proof / 100
+    const volumeGallons = parseFloat(transfer.volumeGallons || 0);
+    const proof = parseFloat(transfer.proof || 0);
+    const proofGallons = (volumeGallons * proof) / 100;
+    
+    return {
+      id: transfer.id,
+      createdAt: transfer.transferDate || transfer.createdAt,
+      transactionType: `TRANSFER_${transfer.direction}`,
+      container: transfer.container ? {
+        id: transfer.container.id,
+        name: transfer.container.name || 'N/A',
+        type: transfer.container.type || 'N/A',
+        containerKind: transfer.container.containerKind
+      } : null,
+      containerId: transfer.containerId,
+      product: null, // Transfers don't have product directly
+      proof: proof,
+      volumeGallons: volumeGallons,
+      proofGallons: proofGallons,
+      notes: transfer.notes || '',
+      transferNumber: transfer.transferNumber,
+      destination: transfer.destination,
+      carrier: transfer.carrier,
+      status: transfer.status
+    };
+  };
+
+  // Get data to display based on log type
+  const getDisplayData = () => {
+    if (logType === 'TIB In Log' || logType === 'TIB Out Log') {
+      // Convert transfers to display format
+      const displayData = transfers.map(convertTransferToDisplay);
+      return displayData;
+    } else if (logType === 'Ware Log') {
+      // Combine bottling transactions and PRODUCTION SALE transfers
+      const bottlingTransactions = filterTransactions(transactions);
+      // Filter outbound transfers for PRODUCTION SALE
+      const productionSaleTransfers = transfers
+        .filter(t => t.direction === 'OUTBOUND' && t.notes && t.notes.includes('PRODUCTION SALE'))
+        .map(convertTransferToDisplay);
+      // Combine and return
+      return [...bottlingTransactions, ...productionSaleTransfers];
+    } else {
+      // Use filtered transactions
+      const filteredTransactions = filterTransactions(transactions);
+      return filteredTransactions;
+    }
+  };
+
+  const displayData = getDisplayData();
+
+  const sortedData = [...displayData].sort((a, b) => {
     const dateA = new Date(a.createdAt);
     const dateB = new Date(b.createdAt);
     return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
   });
 
-  const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentTransactions = sortedTransactions.slice(startIndex, endIndex);
+  const currentData = sortedData.slice(startIndex, endIndex);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -116,7 +251,7 @@ const TransactionView = () => {
   const handleExport = () => {
     const csvContent = [
       ['Date', 'Type', 'Container', 'Product', 'Proof', 'Net Wt Δ', 'PG Δ', 'Notes'],
-      ...sortedTransactions.map(t => [
+      ...sortedData.map(t => [
         formatDate(t.createdAt),
         t.transactionType,
         t.container?.name && t.container?.type 
@@ -134,7 +269,7 @@ const TransactionView = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `transaction-log-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${logType.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -142,6 +277,11 @@ const TransactionView = () => {
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
+  };
+
+  const handleLogTypeChange = (newLogType) => {
+    setLogType(newLogType);
+    setCurrentPage(1); // Reset to first page when changing log type
   };
 
   if (isLoading) {
@@ -165,13 +305,26 @@ const TransactionView = () => {
       {/* Header */}
       <div className="flex justify-between items-center transition-colors mb-4" >
         <h2 className="text-3xl font-semibold" style={{ color: 'var(--text-accent)' }}>Transaction Log</h2>
-        <Button
-          onClick={handleExport}
-          variant="default"
-          icon={FileText}
-        >
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-4">
+          <select
+            value={logType}
+            onChange={(e) => handleLogTypeChange(e.target.value)}
+            style={{ backgroundColor: 'var(--bg-accent)', color: 'var(--text-primary)' }}
+            className="px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="Inventory Log">Inventory Log</option>
+            <option value="TIB In Log">TIB In Log</option>
+            <option value="TIB Out Log">TIB Out Log</option>
+            <option value="Ware Log">Ware Log</option>
+          </select>
+          <Button
+            onClick={handleExport}
+            variant="default"
+            icon={FileText}
+          >
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Info Box */}
@@ -220,7 +373,7 @@ const TransactionView = () => {
               </tr>
             </thead>
             <tbody className="divide-y" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-              {currentTransactions.map((transaction) => {
+              {currentData.map((transaction) => {
                 const actionIcon = getActionIcon(transaction);
                 const showUndo = canUndo(transaction) && !actionIcon;
 
@@ -230,7 +383,11 @@ const TransactionView = () => {
                       <span className="block truncate">{formatDate(transaction.createdAt)}</span>
                     </td>
                     <td className="px-6 whitespace-nowrap overflow-hidden text-center" style={{ color: 'var(--text-primary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
-                      <span className="block truncate">{transaction.transactionType}</span>
+                      <span className="block truncate">
+                        {transaction.transactionType === 'TRANSFER_INBOUND' ? 'TIB In' :
+                         transaction.transactionType === 'TRANSFER_OUTBOUND' ? 'TIB Out' :
+                         transaction.transactionType}
+                      </span>
                     </td>
                     <td className="px-6 overflow-hidden text-center" style={{ color: 'var(--text-primary)', height: '64px', maxHeight: '64px' }} title={transaction.containerId}>
                       <div className="flex flex-col justify-center items-center h-full">
@@ -290,16 +447,16 @@ const TransactionView = () => {
             </tbody>
           </table>
                   {/* Pagination */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={itemsPerPage}
-          totalItems={sortedTransactions.length}
-          startIndex={startIndex}
-          endIndex={endIndex}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={handleItemsPerPageChange}
-        />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={sortedData.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         </div>
         
 
