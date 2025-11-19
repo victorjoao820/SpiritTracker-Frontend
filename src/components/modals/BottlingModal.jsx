@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { logTransaction } from "../../utils/helpers";
 import { TRANSACTION_TYPES } from "../../constants";
 import { calculateDerivedValuesFromWeight } from "../../utils/helpers";
+import { bottlingRunsAPI, productsAPI } from "../../services/api";
 
 // --- BottlingModal ---
 export const BottlingModal = ({
@@ -54,6 +55,111 @@ export const BottlingModal = ({
 
   const maxBottles = calculateMaxBottles();
   const maxCases = Math.floor(maxBottles / 12);
+  
+  // Helper function to generate product abbreviation from name
+  // Uses first 2 letters of each word, separated by dots
+  // Example: "Bonfire Cinnamon Whiskey" -> "BO.CI.WH"
+  const getProductAbbreviation = (productName) => {
+    if (!productName) return 'PROD';
+    
+    // Split by spaces and take first 2 letters of each word
+    const words = productName.trim().split(/\s+/).filter(word => word.length > 0);
+    
+    if (words.length === 0) return 'PROD';
+    
+    // Take first 2 letters of each word, uppercase, separated by dots
+    return words.map(word => {
+      const firstTwo = word.substring(0, 2).toUpperCase();
+      return firstTwo;
+    }).join('.');
+  };
+
+  // Helper function to generate batch number based on product
+  const generateBatchNumber = async (productId) => {
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    
+    if (!productId) {
+      return `BTL-UNK-${dateStr}`;
+    }
+    
+    try {
+      // Fetch product information
+      const product = await productsAPI.getById(productId);
+      
+      if (product) {
+        // Generate abbreviation from product name (first 2 letters of each word, separated by dots)
+        const productAbbr = getProductAbbreviation(product.name);
+        
+        // Format: BTL-{PRODUCT}-{DATE}
+        // Example: "Bonfire Cinnamon Whiskey" -> "BTL-BO.CI.WH-20251117"
+        return `BTL-${productAbbr}-${dateStr}`;
+      }
+    } catch (err) {
+      console.error("Error fetching product for batch number:", err);
+    }
+    
+    // Fallback if product fetch fails
+    return `BTL-PROD-${dateStr}`;
+  };
+
+  // Helper function to create or update bottling run record
+  const createBottlingRunRecord = async (bottles, bottledWG) => {
+    try {
+      // Save bottle size in mL (original value like 750, 375, 1750, 1000, 50)
+      const bottleSizeMl = parseFloat(bottleSize);
+      const productId = container.productId || null;
+      
+      // Check if there's an existing bottling run with the same product and bottle size
+      const existingRuns = await bottlingRunsAPI.getAll();
+      const matchingRun = existingRuns.find(run => 
+        run.productId === productId && 
+        Math.abs(parseFloat(run.bottleSize) - bottleSizeMl) < 0.01 && // Allow small floating point differences (compare in mL)
+        run.status === 'COMPLETED'
+      );
+      
+      if (matchingRun) {
+        // Update existing bottling run by adding new bottles
+        // Keep the same batch number (same product = same batch number)
+        const newBottlesProduced = matchingRun.bottlesProduced + bottles;
+        const newVolumeGallons = parseFloat(matchingRun.volumeGallons) + parseFloat(bottledWG.toFixed(2));
+        
+        // Update notes to include this bottling
+        const existingNotes = matchingRun.notes || '';
+        const newNote = `Bottled from container: ${container.name || container.type} (${container.id})`;
+        const updatedNotes = existingNotes ? `${existingNotes}; ${newNote}` : newNote;
+        
+        await bottlingRunsAPI.update(matchingRun.id, {
+          bottlesProduced: newBottlesProduced,
+          volumeGallons: newVolumeGallons,
+          endDate: new Date().toISOString(), // Update end date to current time
+          notes: updatedNotes
+        });
+      } else {
+        // Create new bottling run
+        // Generate batch number based on product (same product = same batch number format)
+        const batchNumber = await generateBatchNumber(productId);
+        
+        // Create bottling run data
+        const bottlingRunData = {
+          batchNumber: batchNumber,
+          productId: productId,
+          bottleSize: bottleSizeMl, // in mL (750, 375, 1750, 1000, 50, etc.)
+          bottlesProduced: bottles,
+          volumeGallons: parseFloat(bottledWG.toFixed(2)),
+          proof: proof,
+          startDate: new Date().toISOString(),
+          endDate: new Date().toISOString(),
+          status: 'COMPLETED',
+          notes: `Bottled from container: ${container.name || container.type} (${container.id})`
+        };
+        
+        await bottlingRunsAPI.create(bottlingRunData);
+      }
+    } catch (err) {
+      console.error("Error creating/updating bottling run record:", err);
+      // Don't throw error - bottling operation should still succeed even if record creation fails
+    }
+  };
   
   // Reset bottling count and list when modal opens
   useEffect(() => {
@@ -213,6 +319,12 @@ export const BottlingModal = ({
             containerName: container.name || container.type,
             notes: `Bottled ${bottlingRecord.bottles} bottles (${bottlingRecord.bottledWG.toFixed(2)} WG)`,
           });
+          
+          // Create bottling run record
+          await createBottlingRunRecord(
+            bottlingRecord.bottles,
+            bottlingRecord.bottledWG
+          );
         }
         
         // If there's also a current input value, save that too
@@ -247,6 +359,9 @@ export const BottlingModal = ({
               containerName: container.name || container.type,
               notes: `Bottled ${bottles} bottles (${bottledWG.toFixed(2)} WG)`,
             });
+            
+            // Create bottling run record
+            await createBottlingRunRecord(bottles, bottledWG, bottledPG);
           }
         }
         
@@ -288,6 +403,9 @@ export const BottlingModal = ({
         containerName: container.name || container.type,
         notes: `Bottled ${bottles} bottles (${bottledWG.toFixed(2)} WG)`,
       });
+      
+      // Create bottling run record
+      await createBottlingRunRecord(bottles, bottledWG, bottledPG);
 
       onClose();
     } catch (err) {

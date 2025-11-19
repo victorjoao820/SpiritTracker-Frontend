@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { transferOutboundAPI, containersAPI, dspsAPI, productsAPI } from '../../services/api';
+import { transferOutboundAPI, containersAPI, dspsAPI, productsAPI, bottlingRunsAPI } from '../../services/api';
 import { AddEditDSPModal } from '../modals';
 import Pagination from '../parts/shared/Pagination';
 
@@ -24,7 +24,7 @@ const TransferOutBoundView = () => {
   // Reason options
   const reasonOptions = [
     { value: 'BULK SALE', label: 'Spirit Sale' },
-    { value: 'PRODUCTION SALE', label: 'Production Sale' },
+    { value: 'PRODUCT SALE', label: 'Product Sale' },
     { value: 'RETURN', label: 'Return' },
     { value: 'OTHER', label: 'Other' },
   ];
@@ -53,6 +53,7 @@ const TransferOutBoundView = () => {
   
   // Container selection state
   const [containers, setContainers] = useState([]);
+  const [bottlingRuns, setBottlingRuns] = useState([]);
   const [selectedContainers, setSelectedContainers] = useState({}); // { containerId: { count: 1, cost: 0, shippingCost: 0 } }
   const [dsps, setDsps] = useState([]);
   const [products, setProducts] = useState([]);
@@ -122,6 +123,29 @@ const TransferOutBoundView = () => {
   useEffect(() => {
     fetchContainers();
   }, [fetchContainers]);
+
+  // Fetch bottling runs
+  const fetchBottlingRuns = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const bottlingRunsData = await bottlingRunsAPI.getAll();
+      // Filter only completed bottling runs
+      const completed = (bottlingRunsData || []).filter(run => run.status === 'COMPLETED');
+      setBottlingRuns(completed);
+    } catch (err) {
+      console.error('Error fetching bottling runs:', err);
+      setError('Failed to fetch bottling runs.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch bottling runs when reason is PRODUCT SALE
+  useEffect(() => {
+    if (formData.reason === 'PRODUCT SALE') {
+      fetchBottlingRuns();
+    }
+  }, [formData.reason, fetchBottlingRuns]);
 
   // Helper function to check if container was created/updated from Transfer Inbound
   const isFromTransferInbound = (container) => {
@@ -216,23 +240,46 @@ const TransferOutBoundView = () => {
   // Combine both arrays
   const containerGroups = [...transferContainerGroups, ...individualContainerGroups];
 
-  // Sort groups by fillDate (using first container's date)
-  containerGroups.sort((a, b) => {
-    const dateA = a.representative.fillDate ? new Date(a.representative.fillDate).getTime() : 0;
-    const dateB = b.representative.fillDate ? new Date(b.representative.fillDate).getTime() : 0;
+  // Convert bottling runs to group-like objects for PRODUCT SALE
+  const bottlingRunGroups = bottlingRuns.map(run => ({
+    key: run.id,
+    bottlingRun: run,
+    bottlesAvailable: run.bottlesProduced || 0,
+    count: run.bottlesProduced || 0, // Available bottles
+    isBottlingRun: true, // Mark as bottling run
+    representative: {
+      id: run.id,
+      name: run.batchNumber || `Bottling Run ${run.id}`,
+      type: 'Bottling Run',
+      proof: run.proof,
+      productId: run.productId,
+      bottleSize: run.bottleSize,
+      volumeGallons: run.volumeGallons,
+      startDate: run.startDate,
+      endDate: run.endDate
+    }
+  }));
+
+  // Determine which groups to display based on reason
+  const displayGroups = formData.reason === 'PRODUCT SALE' ? bottlingRunGroups : containerGroups;
+
+  // Sort groups by date
+  displayGroups.sort((a, b) => {
+    const dateA = a.representative.fillDate || a.representative.startDate || a.representative.endDate;
+    const dateB = b.representative.fillDate || b.representative.startDate || b.representative.endDate;
     
-    if (!a.representative.fillDate && !b.representative.fillDate) return 0;
-    if (!a.representative.fillDate) return 1;
-    if (!b.representative.fillDate) return -1;
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
     
-    return dateA - dateB;
+    return new Date(dateA).getTime() - new Date(dateB).getTime();
   });
 
   // Calculate pagination
-  const totalPages = Math.ceil(containerGroups.length / itemsPerPage);
+  const totalPages = Math.ceil(displayGroups.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentContainers = containerGroups.slice(startIndex, endIndex);
+  const currentContainers = displayGroups.slice(startIndex, endIndex);
 
   // Handle items per page change
   const handleItemsPerPageChange = (newItemsPerPage) => {
@@ -302,7 +349,7 @@ const TransferOutBoundView = () => {
         
         // Validate count doesn't exceed group count
         if (field === 'count') {
-          const group = containerGroups.find(g => g.key === groupKey);
+          const group = displayGroups.find(g => g.key === groupKey);
           if (group && newValue > group.count) {
             newValue = group.count;
           }
@@ -348,19 +395,57 @@ const TransferOutBoundView = () => {
         return;
       }
       if (Object.keys(selectedContainers).length === 0) {
-        setError('Please select at least one container');
+        setError(`Please select at least one ${formData.reason === 'PRODUCT SALE' ? 'bottling run' : 'container'}`);
         setIsSaving(false);
         return;
       }
 
-      // Create ONE transfer per selected container group
+      // Create ONE transfer per selected group (container or bottling run)
       const transferPromises = [];
       const containerUpdatePromises = [];
       
       Object.entries(selectedContainers).forEach(([groupKey, data]) => {
         // Find the group
-        const group = containerGroups.find(g => g.key === groupKey);
+        const group = displayGroups.find(g => g.key === groupKey);
         if (!group) return;
+
+        // Handle bottling runs differently
+        if (group.isBottlingRun) {
+          const bottlingRun = group.bottlingRun;
+          const selectedBottles = data.count || 1;
+          const availableBottles = group.bottlesAvailable;
+          const actualSelectedBottles = Math.min(selectedBottles, availableBottles);
+          
+          // Convert bottle size from mL to gallons for volume calculation
+          // bottleSize is in mL, convert to gallons: 1 mL = 0.000264172 gallons
+          const bottleSizeGallons = (parseFloat(bottlingRun.bottleSize) * 0.000264172) || 0;
+          const totalVolumeGallons = bottleSizeGallons * actualSelectedBottles;
+          
+          // Build notes
+          let notes = `${formData.reason}${formData.note ? ` | ${formData.note}` : ''}`;
+          notes += ` | Bottling Run: ${bottlingRun.batchNumber}`;
+          notes += ` | Bottles: ${actualSelectedBottles} of ${availableBottles}`;
+          notes += ` | Bottle Size: ${bottlingRun.bottleSize} mL`;
+          if (data.cost > 0) notes += ` | Cost: ${data.cost}`;
+          if (data.shippingCost > 0) notes += ` | Shipping Cost: ${data.shippingCost}`;
+          
+          // Create transfer for bottling run
+          const transferData = {
+            transferNumber: formData.tibOutNumber,
+            transferType: 'CONTAINER', // Using CONTAINER type for now
+            direction: 'OUTBOUND',
+            containerId: null, // No container for bottling runs
+            destination: formData.toDSP,
+            volumeGallons: totalVolumeGallons,
+            proof: bottlingRun.proof || 0,
+            transferDate: new Date(formData.timestamp).toISOString(),
+            carrier: formData.conveyance,
+            notes: notes
+          };
+          
+          transferPromises.push(transferOutboundAPI.create(transferData));
+          return; // Skip container update logic for bottling runs
+        }
 
         const selectedCount = data.count || 1;
         const totalAvailable = group.count; // Available containers (from sameCount or actual count)
@@ -440,13 +525,19 @@ const TransferOutBoundView = () => {
       // Execute all transfers and container updates
       await Promise.all([...transferPromises, ...containerUpdatePromises]);
       
-      // Refresh containers list to reflect changes
-      await fetchContainers();
+      // Refresh data based on reason
+      if (formData.reason === 'PRODUCT SALE') {
+        await fetchBottlingRuns();
+      } else {
+        await fetchContainers();
+      }
 
       setError('');
       const selectedGroupCount = Object.keys(selectedContainers).length;
-      const totalContainersTransferred = Object.values(selectedContainers).reduce((sum, data) => sum + (data.count || 1), 0);
-      setSuccessMessage(`Transfer TOB-${formData.tibOutNumber} has been created successfully for ${selectedGroupCount} group(s) (${totalContainersTransferred} container(s) total).`);
+      const totalItemsTransferred = Object.values(selectedContainers).reduce((sum, data) => sum + (data.count || 1), 0);
+      const itemType = formData.reason === 'PRODUCT SALE' ? 'bottling run(s)' : 'group(s)';
+      const itemUnit = formData.reason === 'PRODUCT SALE' ? 'bottle(s)' : 'container(s)';
+      setSuccessMessage(`Transfer TOB-${formData.tibOutNumber} has been created successfully for ${selectedGroupCount} ${itemType} (${totalItemsTransferred} ${itemUnit} total).`);
       
       // Clear form after successful save
       setFormData({
@@ -658,31 +749,43 @@ const TransferOutBoundView = () => {
         <div className="col-span-2">
           <div className="rounded-lg border p-4 transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
             <h4 className="text-md font-semibold mb-4 transition-colors" style={{ color: 'var(--text-primary)' }}>
-              Container Selection
+              {formData.reason === 'PRODUCT SALE' ? 'Bottling Run Selection' : 'Container Selection'}
             </h4>
             
-            {containerGroups.length === 0 ? (
-              <p className="text-sm text-gray-400">No filled containers available</p>
+            {displayGroups.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                {formData.reason === 'PRODUCT SALE' ? 'No bottling runs available' : 'No filled containers available'}
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="transition-colors border-b" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}>
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Select</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Container</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Spirit Type</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Count</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                        {formData.reason === 'PRODUCT SALE' ? 'Batch Number' : 'Container'}
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                        {formData.reason === 'PRODUCT SALE' ? 'Product' : 'Spirit Type'}
+                      </th>
+                      {formData.reason === 'PRODUCT SALE' && (
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Bottle Size</th>
+                      )}
+                      <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                        {formData.reason === 'PRODUCT SALE' ? 'Bottles' : 'Count'}
+                      </th>
                       <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Cost</th>
                       <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider transition-colors" style={{ color: 'var(--text-secondary)' }}>Shipping Cost</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y transition-colors" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                     {currentContainers.map((group) => {
-                      const container = group.representative;
+                      const item = group.representative;
                       const isSelected = !!selectedContainers[group.key];
-                      const containerData = selectedContainers[group.key] || { count: 0, cost: 0, shippingCost: 0 };
-                      const product = products.find(p => p.id === container.productId);
-                      const selectedCount = containerData.count || 0;
+                      const itemData = selectedContainers[group.key] || { count: 0, cost: 0, shippingCost: 0 };
+                      const product = products.find(p => p.id === item.productId);
+                      const selectedCount = itemData.count || 0;
+                      const isBottlingRun = group.isBottlingRun;
                       
                       return (
                         <tr key={group.key} className="transition-colors">
@@ -697,8 +800,13 @@ const TransferOutBoundView = () => {
                           <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
                             <div>
                               <div className="font-medium">
-                                {container.name || 'Unnamed'}
-                                {group.isGrouped && (
+                                {isBottlingRun ? item.name : (item.name || 'Unnamed')}
+                                {isBottlingRun && group.count > 0 && (
+                                  <span className="ml-1 text-sm font-bold" style={{ color: '#60a5fa', fontWeight: 'bold' }}>
+                                    (x{group.count})
+                                  </span>
+                                )}
+                                {!isBottlingRun && group.isGrouped && (
                                   <span className="ml-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                     {group.sameCount && group.sameCount > group.count 
                                       ? `(${group.count} of ${group.sameCount})`
@@ -714,28 +822,35 @@ const TransferOutBoundView = () => {
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                {container.type || 'N/A'}
-                                {container.containerKind && ` - ${container.containerKind.name}`}
-                              </div>
+                              {!isBottlingRun && (
+                                <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                  {item.type || 'N/A'}
+                                  {item.containerKind && ` - ${item.containerKind.name}`}
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
                             {product ? product.name : 'N/A'}
                           </td>
+                          {isBottlingRun && (
+                            <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                              {item.bottleSize ? `${parseFloat(item.bottleSize).toFixed(0)} mL` : 'N/A'}
+                            </td>
+                          )}
                           <td className="px-3 py-2">
                             <input
                               type="number"
                               min="1"
                               max={group.count}
                               step="1"
-                              value={isSelected ? containerData.count : ''}
+                              value={isSelected ? itemData.count : ''}
                               onChange={(e) => handleContainerFieldChange(group.key, 'count', e.target.value)}
                               disabled={!isSelected}
                               style={{ backgroundColor: isSelected ? 'var(--bg-accent)' : 'var(--bg-readable)', color:'var(--text-primary)'}}
                               className="w-20 p-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
                               placeholder="1"
-                              title={group.sameCount ? `Available: ${group.count} of ${group.sameCount} total` : `Available: ${group.count}`}
+                              title={isBottlingRun ? `Available: ${group.count} bottles` : (group.sameCount ? `Available: ${group.count} of ${group.sameCount} total` : `Available: ${group.count}`)}
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -743,7 +858,7 @@ const TransferOutBoundView = () => {
                               type="number"
                               min="0"
                               step="0.01"
-                              value={isSelected ? containerData.cost : ''}
+                              value={isSelected ? itemData.cost : ''}
                               onChange={(e) => handleContainerFieldChange(group.key, 'cost', e.target.value)}
                               disabled={!isSelected}
                               style={{ backgroundColor: isSelected ? 'var(--bg-accent)' : 'var(--bg-readable)', color:'var(--text-primary)'}}
@@ -756,7 +871,7 @@ const TransferOutBoundView = () => {
                               type="number"
                               min="0"
                               step="0.01"
-                              value={isSelected ? containerData.shippingCost : ''}
+                              value={isSelected ? itemData.shippingCost : ''}
                               onChange={(e) => handleContainerFieldChange(group.key, 'shippingCost', e.target.value)}
                               disabled={!isSelected}
                               style={{ backgroundColor: isSelected ? 'var(--bg-accent)' : 'var(--bg-readable)', color:'var(--text-primary)'}}

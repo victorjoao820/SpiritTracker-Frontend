@@ -13,6 +13,8 @@ const TransactionView = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [logType, setLogType] = useState('Inventory Log');
+  const [wareLogFilter, setWareLogFilter] = useState('ALL'); // 'ALL', 'BOTTLING', 'SALE'
+  const [inventoryLogFilter, setInventoryLogFilter] = useState('ALL'); // 'ALL', 'Create', 'Edit', 'Proof Down', 'Transfer'
 
   useEffect(() => {
     const loadData = async () => {
@@ -96,17 +98,126 @@ const TransactionView = () => {
            containerNotes.includes('Transferred out TOB-');
   };
 
+  // Helper function to format value with direction indicator for Inventory Log
+  const formatValueWithDirection = (transaction, valueType) => {
+    // Only apply direction indicators for Inventory Log
+    if (logType !== 'Inventory Log') {
+      return valueType === 'proof' 
+        ? (transaction.proof || '0')
+        : valueType === 'volumeGallons'
+        ? (transaction.volumeGallons ? Number(transaction.volumeGallons).toFixed(2) : '0.00')
+        : (transaction.proofGallons ? Number(transaction.proofGallons).toFixed(2) : '0.00');
+    }
+
+    const transactionType = transaction.transactionType;
+
+    // For PROOF_DOWN: parse notes to get old proof and calculate delta
+    if (transactionType === 'PROOF_DOWN' && valueType === 'proof') {
+      const notes = transaction.notes || '';
+      // Parse: "Proof down ${oldProof} -> ${newProof}"
+      const match = notes.match(/Proof down ([\d.]+) -> ([\d.]+)/);
+      if (match) {
+        const oldProof = parseFloat(match[1]);
+        const newProof = parseFloat(match[2]);
+        const delta = newProof - oldProof; // This will be negative (e.g., -10)
+        return delta >= 0 ? `+${delta.toFixed(2)}` : `${delta.toFixed(2)}`;
+      }
+      // Fallback: show new proof if parsing fails
+      return transaction.proof || '0';
+    }
+
+    // For PROOF_DOWN: volumeGallons stores the net weight change (newNetWeight - oldNetWeight in lbs)
+    // This represents the increase in net weight, so it should be positive
+    if (transactionType === 'PROOF_DOWN' && valueType === 'volumeGallons') {
+      const value = parseFloat(transaction.volumeGallons) || 0;
+      // The value is already the change (positive for increase)
+      return value > 0 ? `+${value.toFixed(2)}` : value < 0 ? `${value.toFixed(2)}` : '0.00';
+    }
+
+    // For CREATE transactions: values are positive (adding)
+    if (['CREATE_EMPTY_CONTAINER', 'CREATE_FILLED_CONTAINER'].includes(transactionType)) {
+      const value = valueType === 'proof'
+        ? parseFloat(transaction.proof) || 0
+        : valueType === 'volumeGallons'
+        ? parseFloat(transaction.volumeGallons) || 0
+        : parseFloat(transaction.proofGallons) || 0;
+      return value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+    }
+
+    // For TRANSFER_IN: values are positive (adding)
+    if (transactionType === 'TRANSFER_IN') {
+      const value = valueType === 'proof'
+        ? parseFloat(transaction.proof) || 0
+        : valueType === 'volumeGallons'
+        ? parseFloat(transaction.volumeGallons) || 0
+        : parseFloat(transaction.proofGallons) || 0;
+      return value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+    }
+
+    // For TRANSFER_OUT: values are negative (removing)
+    if (transactionType === 'TRANSFER_OUT') {
+      const value = valueType === 'proof'
+        ? parseFloat(transaction.proof) || 0
+        : valueType === 'volumeGallons'
+        ? parseFloat(transaction.volumeGallons) || 0
+        : parseFloat(transaction.proofGallons) || 0;
+      return value > 0 ? `-${value.toFixed(2)}` : value.toFixed(2);
+    }
+
+    // For EDIT transactions: typically show as positive (corrections/adjustments)
+    if (['EDIT_EMPTY_DATA_CORRECTION', 'EDIT_FILL_DATA_CORRECTION', 'EDIT_FILL_FROM_EMPTY', 'EDIT_EMPTY_FROM_FILLED', 'REFILL_CONTAINER'].includes(transactionType)) {
+      const value = valueType === 'proof'
+        ? parseFloat(transaction.proof) || 0
+        : valueType === 'volumeGallons'
+        ? parseFloat(transaction.volumeGallons) || 0
+        : parseFloat(transaction.proofGallons) || 0;
+      return value > 0 ? `+${value.toFixed(2)}` : value < 0 ? `${value.toFixed(2)}` : value.toFixed(2);
+    }
+
+    // Default: show value as-is (no sign for zero, positive with +, negative with -)
+    const value = valueType === 'proof'
+      ? parseFloat(transaction.proof) || 0
+      : valueType === 'volumeGallons'
+      ? parseFloat(transaction.volumeGallons) || 0
+      : parseFloat(transaction.proofGallons) || 0;
+    
+    if (value === 0) return '0.00';
+    return value > 0 ? `+${value.toFixed(2)}` : `${value.toFixed(2)}`;
+  };
+
   // Filter transactions based on selected log type
   const filterTransactions = (transactions) => {
     if (logType === 'Inventory Log') {
       // Show all transactions except TIB In/Out, Production (Fermentation/Distillation), and Bottling
-      return transactions.filter(t => {
+      let filtered = transactions.filter(t => {
         const isTIBIn = isTransferInboundTransaction(t);
         const isTIBOut = isTransferOutboundTransaction(t);
         const isProduction = ['FERMENTATION_FINISH', 'FERMENTATION_START', 'DISTILLATION_FINISH', 'DISTILLATION_START'].includes(t.transactionType);
         const isBottling = ['BOTTLE_KEEP', 'BOTTLE_EMPTY', 'BOTTLING_GAIN', 'BOTTLING_LOSS'].includes(t.transactionType);
         return !isTIBIn && !isTIBOut && !isProduction && !isBottling;
       });
+
+      // Apply inventory log filter
+      if (inventoryLogFilter === 'Create') {
+        filtered = filtered.filter(t => 
+          ['CREATE_EMPTY_CONTAINER', 'CREATE_FILLED_CONTAINER'].includes(t.transactionType)
+        );
+      } else if (inventoryLogFilter === 'Edit') {
+        filtered = filtered.filter(t => 
+          ['EDIT_EMPTY_DATA_CORRECTION', 'EDIT_FILL_DATA_CORRECTION', 'EDIT_FILL_FROM_EMPTY', 'EDIT_EMPTY_FROM_FILLED', 'REFILL_CONTAINER'].includes(t.transactionType)
+        );
+      } else if (inventoryLogFilter === 'Proof Down') {
+        filtered = filtered.filter(t => 
+          ['PROOF_DOWN'].includes(t.transactionType)
+        );
+      } else if (inventoryLogFilter === 'Transfer') {
+        filtered = filtered.filter(t => 
+          ['TRANSFER_IN', 'TRANSFER_OUT'].includes(t.transactionType)
+        );
+      }
+      // 'ALL' shows all filtered transactions (no additional filtering)
+
+      return filtered;
     } else if (logType === 'Ware Log') {
       // Show only bottling transactions
       return transactions.filter(t => {
@@ -153,14 +264,24 @@ const TransactionView = () => {
       const displayData = transfers.map(convertTransferToDisplay);
       return displayData;
     } else if (logType === 'Ware Log') {
-      // Combine bottling transactions and PRODUCTION SALE transfers
+      // Combine bottling transactions, PRODUCTION SALE, and PRODUCT SALE transfers
       const bottlingTransactions = filterTransactions(transactions);
-      // Filter outbound transfers for PRODUCTION SALE
-      const productionSaleTransfers = transfers
-        .filter(t => t.direction === 'OUTBOUND' && t.notes && t.notes.includes('PRODUCTION SALE'))
+      // Filter outbound transfers for PRODUCTION SALE and PRODUCT SALE
+      const saleTransfers = transfers
+        .filter(t => t.direction === 'OUTBOUND' && t.notes && (
+          t.notes.includes('PRODUCTION SALE') || t.notes.includes('PRODUCT SALE')
+        ))
         .map(convertTransferToDisplay);
-      // Combine and return
-      return [...bottlingTransactions, ...productionSaleTransfers];
+      
+      // Filter based on wareLogFilter
+      if (wareLogFilter === 'BOTTLING') {
+        return bottlingTransactions;
+      } else if (wareLogFilter === 'SALE') {
+        return saleTransfers;
+      } else {
+        // ALL: Combine both
+        return [...bottlingTransactions, ...saleTransfers];
+      }
     } else {
       // Use filtered transactions
       const filteredTransactions = filterTransactions(transactions);
@@ -199,6 +320,42 @@ const TransactionView = () => {
     if (numValue > 0) return 'text-green-400';
     if (numValue < 0) return 'text-red-400';
     return 'text-gray-300';
+  };
+
+  // Helper function to get proof delta value for color calculation (for Inventory Log)
+  const getProofDeltaValue = (transaction) => {
+    // Only calculate delta for Inventory Log
+    if (logType !== 'Inventory Log') {
+      return parseFloat(transaction.proof) || 0;
+    }
+
+    const transactionType = transaction.transactionType;
+
+    // For PROOF_DOWN: parse notes to get old proof and calculate delta
+    if (transactionType === 'PROOF_DOWN') {
+      const notes = transaction.notes || '';
+      // Parse: "Proof down ${oldProof} -> ${newProof}"
+      const match = notes.match(/Proof down ([\d.]+) -> ([\d.]+)/);
+      if (match) {
+        const oldProof = parseFloat(match[1]);
+        const newProof = parseFloat(match[2]);
+        const delta = newProof - oldProof; // This will be negative (e.g., -10)
+        return delta;
+      }
+      // Fallback: return new proof if parsing fails
+      return parseFloat(transaction.proof) || 0;
+    }
+
+    // For TRANSFER_OUT: values are negative (removing)
+    if (transactionType === 'TRANSFER_OUT') {
+      const value = parseFloat(transaction.proof) || 0;
+      return value > 0 ? -value : value; // Make it negative for color
+    }
+
+    // For CREATE, TRANSFER_IN, EDIT: values are positive (adding/corrections)
+    // Return the proof value as positive for color calculation
+    const value = parseFloat(transaction.proof) || 0;
+    return value;
   };
 
   const canUndo = (transaction) => {
@@ -282,6 +439,31 @@ const TransactionView = () => {
   const handleLogTypeChange = (newLogType) => {
     setLogType(newLogType);
     setCurrentPage(1); // Reset to first page when changing log type
+    // Reset filters when switching log types
+    if (newLogType !== 'Ware Log') {
+      setWareLogFilter('ALL');
+    }
+    if (newLogType !== 'Inventory Log') {
+      setInventoryLogFilter('ALL');
+    }
+  };
+
+  const toggleWareLogFilter = () => {
+    // Cycle through: ALL -> BOTTLING -> SALE -> ALL
+    const filters = ['ALL', 'BOTTLING', 'SALE'];
+    const currentIndex = filters.indexOf(wareLogFilter);
+    const nextIndex = (currentIndex + 1) % filters.length;
+    setWareLogFilter(filters[nextIndex]);
+    setCurrentPage(1); // Reset to first page when changing filter
+  };
+
+  const toggleInventoryLogFilter = () => {
+    // Cycle through: ALL -> Create -> Edit -> Proof Down -> Transfer -> ALL
+    const filters = ['ALL', 'Create', 'Edit', 'Proof Down', 'Transfer'];
+    const currentIndex = filters.indexOf(inventoryLogFilter);
+    const nextIndex = (currentIndex + 1) % filters.length;
+    setInventoryLogFilter(filters[nextIndex]);
+    setCurrentPage(1); // Reset to first page when changing filter
   };
 
   if (isLoading) {
@@ -346,8 +528,24 @@ const TransactionView = () => {
                     <span style={{ color: 'var(--text-accent)' }}>{sortOrder === 'desc' ? '↓' : '↑'}</span>
                   </div>
                 </th>
-                <th className="px-6 text-center font-semibold tracking-wider whitespace-nowrap text-base" style={{ color: 'var(--text-secondary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
-                  <span>Type</span>
+                <th 
+                  className={`px-6 text-center font-semibold tracking-wider whitespace-nowrap text-base ${(logType === 'Ware Log' || logType === 'Inventory Log') ? 'cursor-pointer hover:opacity-70 select-none' : ''}`}
+                  style={{ color: 'var(--text-secondary)', height: '64px', maxHeight: '64px' }}
+                  onClick={(logType === 'Ware Log' || logType === 'Inventory Log') ? (logType === 'Ware Log' ? toggleWareLogFilter : toggleInventoryLogFilter) : undefined}
+                >
+                  <div className="flex flex-col items-center justify-center" style={{ height: '64px' }}>
+                    <span>Type</span>
+                    {logType === 'Ware Log' && (
+                      <span className="text-xs font-bold mt-1" style={{ color: 'rgb(236, 120, 43)' }}>
+                        {"<-" + wareLogFilter + "->"}
+                      </span>
+                    )}
+                    {logType === 'Inventory Log' && (
+                      <span className="text-xs font-bold mt-1" style={{ color: 'rgb(236, 120, 43)' }}>
+                        {"<-" + inventoryLogFilter + "->"}
+                      </span>
+                    )}
+                  </div>
                 </th>
                 <th className="px-6 text-center font-semibold tracking-wider whitespace-nowrap text-base" style={{ color: 'var(--text-secondary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
                   <span>Container</span>
@@ -399,17 +597,17 @@ const TransactionView = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 whitespace-nowrap overflow-hidden text-center" style={{ color: 'var(--text-primary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
+                    <td className="px-6 whitespace-nowrap overflow-hidden text-center"  style={{ color: 'var(--text-primary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
                       <span className="block truncate">{transaction.product?.name || 'N/A'}</span>
                     </td>
-                    <td className="px-6 whitespace-nowrap overflow-hidden text-center" style={{ color: 'var(--text-primary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
-                      <span className="block truncate">{transaction.proof || '0'}</span>
+                    <td className={`px-6 whitespace-nowrap overflow-hidden text-center ${getDeltaColor(getProofDeltaValue(transaction))}`} style={{ height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
+                      <span className="block truncate">{formatValueWithDirection(transaction, 'proof')}</span>
                     </td>
                     <td className={`px-6 whitespace-nowrap overflow-hidden text-center ${getDeltaColor(transaction.volumeGallons)}`} style={{ height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
-                      <span className="block truncate">{transaction.volumeGallons ? Number(transaction.volumeGallons).toFixed(2) : '0.00'}</span>
+                      <span className="block truncate">{formatValueWithDirection(transaction, 'volumeGallons')}</span>
                     </td>
                     <td className={`px-6 whitespace-nowrap overflow-hidden text-center ${getDeltaColor(transaction.proofGallons)}`} style={{ height: '64px', maxHeight: '64px', lineHeight: '64px' }}>
-                      <span className="block truncate">{transaction.proofGallons ? Number(transaction.proofGallons).toFixed(2) : '0.00'}</span>
+                      <span className="block truncate">{formatValueWithDirection(transaction, 'proofGallons')}</span>
                     </td>
                     <td className="px-6 overflow-hidden text-center" style={{ color: 'var(--text-tertiary)', height: '64px', maxHeight: '64px', lineHeight: '64px' }} title={transaction.notes}>
                       <span className="block truncate max-w-xs">{transaction.notes || ''}</span>

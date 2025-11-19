@@ -608,6 +608,42 @@ export const containerOperationsAPI = {
   }
 };
 
+// Batching & Bottling Runs API
+export const bottlingRunsAPI = {
+  // Get all bottling runs
+  getAll: async () => {
+    return apiRequest('/batching/bottling');
+  },
+
+  // Get single bottling run
+  getById: async (id) => {
+    return apiRequest(`/batching/bottling/${id}`);
+  },
+
+  // Create bottling run
+  create: async (bottlingRunData) => {
+    return apiRequest('/batching/bottling', {
+      method: 'POST',
+      body: JSON.stringify(bottlingRunData),
+    });
+  },
+
+  // Update bottling run
+  update: async (id, bottlingRunData) => {
+    return apiRequest(`/batching/bottling/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(bottlingRunData),
+    });
+  },
+
+  // Delete bottling run
+  delete: async (id) => {
+    return apiRequest(`/batching/bottling/${id}`, {
+      method: 'DELETE',
+    });
+  }
+};
+
 // TTB Reports API
 export const ttbReportsAPI = {
   // Get all TTB reports
